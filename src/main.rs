@@ -25,7 +25,9 @@ enum GenerationCommand {
         args: SpritesheetArgs,
     },
 
-    /// Generate mipmap icon from a single image or a folder of images
+    /// Generate a mipmap icon from a folder of images
+    ///
+    /// The individual images are used as the respective mip levels and combined into a single image
     Icon {
         // args
         #[clap(flatten)]
@@ -261,7 +263,7 @@ fn generate_spritesheet(args: &SpritesheetArgs) {
             return;
         }
 
-        let (_shift_x, _shift_y) = if args.no_crop {
+        let (shift_x, shift_y) = if args.no_crop {
             (0, 0)
         } else {
             image_util::crop_images(&mut images).unwrap()
@@ -363,6 +365,23 @@ fn generate_spritesheet(args: &SpritesheetArgs) {
             sheet
                 .save_with_format(path, image::ImageFormat::Png)
                 .unwrap();
+        }
+
+        print!(
+            "completed {}",
+            output_name(&source, &args.output, None, "")
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+        );
+
+        if args.no_crop {
+            println!();
+        } else {
+            println!(
+                ", size: ({sprite_width}px, {sprite_height}px), shift: ({shift_x}px, {shift_y}px)"
+            );
         }
     }
 }

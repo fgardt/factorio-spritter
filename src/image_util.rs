@@ -130,7 +130,7 @@ pub fn crop_images(images: &mut Vec<RgbaImage>) -> Result<(i32, i32)> {
     let cropped_width = max_x - min_x + 1;
     let cropped_height = max_y - min_y + 1;
 
-    println!("cropping from {raw_width}x{raw_height} to {cropped_width}x{cropped_height}");
+    // println!("cropping from {raw_width}x{raw_height} to {cropped_width}x{cropped_height}");
 
     // crop images
     for image in images {
@@ -147,7 +147,7 @@ pub fn crop_images(images: &mut Vec<RgbaImage>) -> Result<(i32, i32)> {
     let shift_x = i32::try_from(cropped_right_by).unwrap() - i32::try_from(min_x).unwrap();
     let shift_y = i32::try_from(cropped_bottom_by).unwrap() - i32::try_from(min_y).unwrap();
 
-    println!("shifted by ({shift_x}, {shift_y})");
+    // println!("shifted by ({shift_x}, {shift_y})");
 
     Ok((shift_x, shift_y))
 }
