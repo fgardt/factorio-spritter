@@ -1,0 +1,75 @@
+name: release
+
+on:
+  push:
+    tags:
+       - '[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  release_build:
+    name: Build ${{ matrix.platform.os_name }}
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      matrix:
+        platform:
+          - os_name: Windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-gnu
+            archiver: zip
+            archive_type: zip
+            bin: spritter.exe
+          - os_name: Linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archiver: tar
+            archive_type: tar.gz
+            bin: spritter
+          - os_name: MacOS-x86_64
+            os: macos-latest
+            target: x86_64-apple-darwin
+            archiver: tar
+            archive_type: tar.gz
+            bin: spritter
+          - os_name: MacOS-aarch64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            archiver: tar
+            archive_type: tar.gz
+            bin: spritter
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Stable rust toolchain
+        run: rustup toolchain install stable --target ${{ matrix.platform.target }} --profile minimal
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "rust-stable"
+          shared-key: "release_build-${{ matrix.platform.target }}"
+      - name: Build
+        run: cargo build --target ${{ matrix.platform.target }} --release --package spritter
+      - name: Archive the built binary
+        uses: TheDoctor0/zip-release@0.7.6
+        with:
+          type: ${{ matrix.platform.archiver }}
+          filename: spritter_${{ matrix.platform.target }}.${{ matrix.platform.archive_type }}
+          directory: ./target/${{ matrix.platform.target }}/release
+          path: ${{ matrix.platform.bin }}
+      - name: Upload release artifact for release job
+        uses: actions/upload-artifact@v3
+        with:
+          path: ./target/${{ matrix.platform.target }}/release/spritter_${{ matrix.platform.target }}.${{ matrix.platform.archive_type }}
+  create_release:
+    name: Create release
+    needs: release_build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release artifacts from build job
+        uses: actions/download-artifact@v3
+        with:
+          path: ~/build_artifacts
+      - name: Create release
+        id: create_release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: ~/build_artifacts/artifact/*
