@@ -58,6 +58,7 @@ jobs:
       - name: Upload release artifact for release job
         uses: actions/upload-artifact@v4
         with:
+          name: release_${{ matrix.platform.target }}
           path: ./target/${{ matrix.platform.target }}/release/spritter_${{ matrix.platform.target }}.${{ matrix.platform.archive_type }}
   create_release:
     name: Create release
@@ -72,4 +73,4 @@ jobs:
         id: create_release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: ~/build_artifacts/artifact/*
+          artifacts: ~/build_artifacts/release_*/*
