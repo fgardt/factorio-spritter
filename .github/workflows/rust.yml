@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Stable rust toolchain
         run: rustup toolchain install stable --profile minimal
       - name: Check formatting
@@ -29,7 +29,7 @@ jobs:
     if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Stable rust toolchain
         run: rustup toolchain install stable --profile minimal
       - name: Add Clippy
@@ -46,7 +46,7 @@ jobs:
       - name: Run Clippy
         run: cargo clippy --message-format=json | clippy-sarif | tee results.sarif | sarif-fmt
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: results.sarif
 
@@ -73,7 +73,7 @@ jobs:
             - stable
     steps:
         - name: Checkout
-          uses: actions/checkout@v3
+          uses: actions/checkout@v4
         - name: Setup ${{ matrix.toolchain }} toolchain
           run: rustup toolchain install ${{ matrix.toolchain }} --target ${{ matrix.platform.target }} --profile minimal
         - name: Rust cache
