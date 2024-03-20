@@ -16,8 +16,8 @@ pub enum ImgUtilError {
     #[error("all images must be the same size")]
     NotSameSize,
 
-    #[error("can not crop empty image")]
-    ImageEmpty,
+    #[error("unable to crop, all images are empty")]
+    AllImagesEmpty,
 }
 
 type Result<T> = std::result::Result<T, ImgUtilError>;
@@ -100,7 +100,7 @@ pub fn crop_images(images: &mut Vec<RgbaImage>) -> Result<(i32, i32)> {
 
         // ensure image is not empty
         if x.is_empty() || y.is_empty() {
-            return Err(ImgUtilError::ImageEmpty);
+            continue;
         }
 
         let local_min_x = x[0];
@@ -119,6 +119,15 @@ pub fn crop_images(images: &mut Vec<RgbaImage>) -> Result<(i32, i32)> {
         } else if max_y < local_max_y {
             max_y = local_max_y;
         }
+    }
+
+    // are all images are empty? (or some other edge case?)
+    if min_x == std::u32::MAX
+        || min_y == std::u32::MAX
+        || max_x == std::u32::MIN
+        || max_y == std::u32::MIN
+    {
+        return Err(ImgUtilError::AllImagesEmpty);
     }
 
     // do we need to crop?
