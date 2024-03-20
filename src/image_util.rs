@@ -16,8 +16,8 @@ pub enum ImgUtilError {
     #[error("all images must be the same size")]
     NotSameSize,
 
-    #[error("can not crop empty image")]
-    ImageEmpty,
+    #[error("unable to crop, all images are empty")]
+    AllImagesEmpty,
 }
 
 type Result<T> = std::result::Result<T, ImgUtilError>;
@@ -100,7 +100,7 @@ pub fn crop_images(images: &mut Vec<RgbaImage>) -> Result<(i32, i32)> {
 
         // ensure image is not empty
         if x.is_empty() || y.is_empty() {
-            return Err(ImgUtilError::ImageEmpty);
+            continue;
         }
 
         let local_min_x = x[0];
@@ -121,6 +121,15 @@ pub fn crop_images(images: &mut Vec<RgbaImage>) -> Result<(i32, i32)> {
         }
     }
 
+    // are all images are empty? (or some other edge case?)
+    if min_x == std::u32::MAX
+        || min_y == std::u32::MAX
+        || max_x == std::u32::MIN
+        || max_y == std::u32::MIN
+    {
+        return Err(ImgUtilError::AllImagesEmpty);
+    }
+
     // do we need to crop?
     if min_x == 0 && min_y == 0 && max_x == (raw_width - 1) && max_y == (raw_height - 1) {
         // no cropping needed
@@ -130,7 +139,7 @@ pub fn crop_images(images: &mut Vec<RgbaImage>) -> Result<(i32, i32)> {
     let cropped_width = max_x - min_x + 1;
     let cropped_height = max_y - min_y + 1;
 
-    // println!("cropping from {raw_width}x{raw_height} to {cropped_width}x{cropped_height}");
+    debug!("cropping from {raw_width}x{raw_height} to {cropped_width}x{cropped_height}");
 
     // crop images
     for image in images {
@@ -147,7 +156,7 @@ pub fn crop_images(images: &mut Vec<RgbaImage>) -> Result<(i32, i32)> {
     let shift_x = i32::try_from(cropped_right_by).unwrap() - i32::try_from(min_x).unwrap();
     let shift_y = i32::try_from(cropped_bottom_by).unwrap() - i32::try_from(min_y).unwrap();
 
-    // println!("shifted by ({shift_x}, {shift_y})");
+    trace!("shifted by ({shift_x}, {shift_y})");
 
     Ok((shift_x, shift_y))
 }

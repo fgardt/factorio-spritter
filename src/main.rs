@@ -6,7 +6,11 @@ use std::{
 use clap::{Args, Parser, Subcommand};
 use image::{ImageBuffer, RgbaImage};
 
+#[macro_use]
+extern crate log;
+
 mod image_util;
+mod logger;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about=None)]
@@ -117,6 +121,8 @@ impl std::error::Error for Error {}
 
 fn main() {
     let args = Cli::parse();
+    logger::init("info");
+    info!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
     match args.command {
         GenerationCommand::Spritesheet { args } => {
@@ -154,14 +160,14 @@ fn generate_mipmap_icon(args: &IconArgs) {
     fs::create_dir_all(&args.output).unwrap();
 
     if !args.output.is_dir() {
-        println!("output path is not a directory");
+        error!("output path is not a directory");
         return;
     }
 
     let mut images = image_util::load_from_path(&args.source).unwrap();
 
     if images.is_empty() {
-        println!("no source images found");
+        warn!("no source images found");
         return;
     }
 
@@ -170,7 +176,7 @@ fn generate_mipmap_icon(args: &IconArgs) {
 
     let (base_width, base_height) = images.first().unwrap().dimensions();
     if base_width != base_height {
-        println!("source image is not square");
+        error!("source image is not square");
         return;
     }
 
@@ -178,7 +184,7 @@ fn generate_mipmap_icon(args: &IconArgs) {
     let max_mipmap_levels = (f64::from(base_width)).log2().floor() as usize;
 
     if images.len() > max_mipmap_levels {
-        println!("unable to generate {} mipmap levels, max possible for this icon is {max_mipmap_levels}", images.len());
+        error!("unable to generate {} mipmap levels, max possible for this icon is {max_mipmap_levels}", images.len());
         return;
     }
 
@@ -190,17 +196,17 @@ fn generate_mipmap_icon(args: &IconArgs) {
 
     for (idx, sprite) in images.iter().enumerate() {
         if next_width.rem_euclid(2) != 0 {
-            println!("unable to divide image size by 2 for mipmap level {idx}");
+            error!("unable to divide image size by 2 for mipmap level {idx}");
             return;
         }
 
         if sprite.width() != sprite.height() {
-            println!("source image is not square");
+            error!("source image is not square");
             return;
         }
 
         if sprite.width() != next_width {
-            println!(
+            error!(
                 "source image has wrong size, {} != {next_width}",
                 sprite.width()
             );
@@ -229,7 +235,7 @@ fn generate_spritesheet(args: &SpritesheetArgs) {
     fs::create_dir_all(&args.output).unwrap();
 
     if !args.output.is_dir() {
-        println!("output path is not a directory");
+        error!("output path is not a directory");
         return;
     }
 
@@ -251,22 +257,28 @@ fn generate_spritesheet(args: &SpritesheetArgs) {
     };
 
     if sources.is_empty() {
-        println!("no source directories found");
+        warn!("no source directories found");
         return;
     }
 
-    for source in sources {
+    'recursive: for source in sources {
         let mut images = image_util::load_from_path(&source).unwrap();
 
         if images.is_empty() {
-            println!("no source images found");
-            return;
+            warn!("{}: no source images found", source.display());
+            continue 'recursive;
         }
 
         let (shift_x, shift_y) = if args.no_crop {
             (0, 0)
         } else {
-            image_util::crop_images(&mut images).unwrap()
+            match image_util::crop_images(&mut images) {
+                Ok(shift) => shift,
+                Err(err) => {
+                    error!("{}: {err:?}", source.display());
+                    continue 'recursive;
+                }
+            }
         };
 
         let sprite_count = u32::try_from(images.len()).unwrap();
@@ -344,8 +356,11 @@ fn generate_spritesheet(args: &SpritesheetArgs) {
         // arrange sprites on sheets
         for (idx, sprite) in images.iter().enumerate() {
             if sprite.width() != sprite_width || sprite.height() != sprite_height {
-                println!("all source images must be the same size");
-                return;
+                error!(
+                    "{}: all source images must be the same size",
+                    source.display()
+                );
+                continue 'recursive;
             }
 
             let sheet_idx = idx / max_per_sheet as usize;
@@ -367,20 +382,14 @@ fn generate_spritesheet(args: &SpritesheetArgs) {
                 .unwrap();
         }
 
-        print!(
-            "completed {}",
-            output_name(&source, &args.output, None, "")
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
-        );
+        let name = output_name(&source, &args.output, None, "");
+        let name = name.file_name().unwrap().to_str().unwrap();
 
         if args.no_crop {
-            println!();
+            info!("completed {name}");
         } else {
-            println!(
-                ", size: ({sprite_width}px, {sprite_height}px), shift: ({shift_x}px, {shift_y}px)"
+            info!(
+                "completed {name}, size: ({sprite_width}px, {sprite_height}px), shift: ({shift_x}px, {shift_y}px)"
             );
         }
     }
