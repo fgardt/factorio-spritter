@@ -81,7 +81,6 @@ pub fn crop_images(images: &mut Vec<RgbaImage>) -> ImgUtilResult<(i32, i32)> {
     let mut max_x = std::u32::MIN;
     let mut max_y = std::u32::MIN;
 
-    // TODO: parallelize this
     for image in images.iter() {
         // ensure image has same size
         if image.width() != raw_width || image.height() != raw_height {

@@ -962,6 +962,7 @@ dependencies = [
  "env_logger",
  "image",
  "log",
+ "rayon",
  "thiserror",
 ]
 
