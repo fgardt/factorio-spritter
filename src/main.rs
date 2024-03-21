@@ -7,6 +7,7 @@ use std::{
 use clap::{Args, Parser, Subcommand};
 use image::{ImageBuffer, RgbaImage};
 use image_util::ImageBufferExt;
+use rayon::prelude::*;
 
 #[macro_use]
 extern crate log;
@@ -132,11 +133,11 @@ impl SpritesheetArgs {
             return Ok(());
         }
 
-        for source in sources {
-            if let Err(err) = generate_spritesheet(self, &source) {
+        sources.par_iter().for_each(|source| {
+            if let Err(err) = generate_spritesheet(self, source) {
                 error!("{}: {err}", source.display(),);
             }
-        }
+        });
 
         Ok(())
     }
