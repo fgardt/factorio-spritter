@@ -1,6 +1,6 @@
 [package]
 name = "spritter"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["fgardt <me@fgardt.dev>"]
 description = "Spritesheet generator for factorio"
@@ -17,11 +17,14 @@ nursery = "warn"
 pedantic = "warn"
 unwrap_used = "warn"
 expect_used = "warn"
+cast_possible_truncation = "allow"
+cast_possible_wrap = "allow"
+cast_lossless = "allow"
+cast_sign_loss = "allow"
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
 env_logger = "0.10"
-error-stack = "0.4"
 image = "0.25"
 log = "0.4"
 thiserror = "1.0"
