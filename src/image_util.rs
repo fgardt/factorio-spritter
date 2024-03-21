@@ -1,6 +1,8 @@
-use std::{fs, path::Path};
+use std::{fs, ops::Deref, path::Path};
 
-use image::RgbaImage;
+use image::{
+    codecs::png, EncodableLayout, ImageBuffer, ImageEncoder, Pixel, PixelWithColorType, RgbaImage,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ImgUtilError {
@@ -156,4 +158,34 @@ pub fn crop_images(images: &mut Vec<RgbaImage>) -> ImgUtilResult<(i32, i32)> {
     trace!("shifted by ({shift_x}, {shift_y})");
 
     Ok((shift_x, shift_y))
+}
+
+pub trait ImageBufferExt<P, C> {
+    fn save_optimized_png(&self, path: impl AsRef<Path>) -> ImgUtilResult<()>;
+}
+
+impl<P, C> ImageBufferExt<P, C> for ImageBuffer<P, C>
+where
+    P: Pixel + PixelWithColorType,
+    [P::Subpixel]: EncodableLayout,
+    C: Deref<Target = [P::Subpixel]>,
+{
+    fn save_optimized_png(&self, path: impl AsRef<Path>) -> ImgUtilResult<()> {
+        let mut file = fs::File::create(path)?;
+
+        let (width, height) = self.dimensions();
+        png::PngEncoder::new_with_quality(
+            &mut file,
+            png::CompressionType::Best,
+            png::FilterType::default(),
+        )
+        .write_image(
+            self.as_bytes(),
+            width,
+            height,
+            <P as PixelWithColorType>::COLOR_TYPE,
+        )?;
+
+        Ok(())
+    }
 }

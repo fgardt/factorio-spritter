@@ -6,6 +6,7 @@ use std::{
 
 use clap::{Args, Parser, Subcommand};
 use image::{ImageBuffer, RgbaImage};
+use image_util::ImageBufferExt;
 
 #[macro_use]
 extern crate log;
@@ -277,10 +278,7 @@ fn generate_mipmap_icon(args: &IconArgs) -> Result<(), CommandError> {
 
     image::imageops::crop_imm(&res, 0, 0, total_width, res.height())
         .to_image()
-        .save_with_format(
-            output_name(&args.source, &args.output, None, "png"),
-            image::ImageFormat::Png,
-        )?;
+        .save_optimized_png(output_name(&args.source, &args.output, None, "png"))?;
 
     Ok(())
 }
@@ -401,7 +399,7 @@ fn generate_spritesheet(
 
     // save sheets
     for (sheet, path) in sheets {
-        sheet.save_with_format(path, image::ImageFormat::Png)?;
+        sheet.save_optimized_png(path)?;
     }
 
     let name = output_name(source, &args.output, None, "");
