@@ -20,9 +20,9 @@ pub enum ImgUtilError {
     AllImagesEmpty,
 }
 
-type Result<T> = std::result::Result<T, ImgUtilError>;
+type ImgUtilResult<T> = std::result::Result<T, ImgUtilError>;
 
-pub fn load_from_path(path: &Path) -> Result<Vec<RgbaImage>> {
+pub fn load_from_path(path: &Path) -> ImgUtilResult<Vec<RgbaImage>> {
     if !path.exists() {
         return Err(ImgUtilError::IOError(std::io::Error::new(
             std::io::ErrorKind::NotFound,
@@ -61,18 +61,18 @@ pub fn load_from_path(path: &Path) -> Result<Vec<RgbaImage>> {
     Ok(images)
 }
 
-fn load_image_from_file(path: &Path) -> Result<RgbaImage> {
+fn load_image_from_file(path: &Path) -> ImgUtilResult<RgbaImage> {
     let image = image::open(path)?.to_rgba8();
     Ok(image)
 }
 
-pub fn crop_images(images: &mut Vec<RgbaImage>) -> Result<(i32, i32)> {
+pub fn crop_images(images: &mut Vec<RgbaImage>) -> ImgUtilResult<(i32, i32)> {
     if images.is_empty() {
         return Err(ImgUtilError::NoImagesToCrop);
     }
 
-    let raw_width = images.first().unwrap().width();
-    let raw_height = images.first().unwrap().height();
+    #[allow(clippy::unwrap_used)]
+    let (raw_width, raw_height) = images.first().unwrap().dimensions();
 
     let mut min_x = std::u32::MAX;
     let mut min_y = std::u32::MAX;
@@ -150,11 +150,8 @@ pub fn crop_images(images: &mut Vec<RgbaImage>) -> Result<(i32, i32)> {
     }
 
     // calculate how the center point shifted relative to the original image
-    let cropped_right_by = raw_width - max_x - 1;
-    let cropped_bottom_by = raw_height - max_y - 1;
-
-    let shift_x = i32::try_from(cropped_right_by).unwrap() - i32::try_from(min_x).unwrap();
-    let shift_y = i32::try_from(cropped_bottom_by).unwrap() - i32::try_from(min_y).unwrap();
+    let shift_x = (raw_width - cropped_width) as i32 - min_x as i32;
+    let shift_y = (raw_height - cropped_height) as i32 - min_y as i32;
 
     trace!("shifted by ({shift_x}, {shift_y})");
 
