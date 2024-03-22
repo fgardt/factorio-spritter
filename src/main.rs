@@ -304,7 +304,7 @@ fn generate_spritesheet(
     }
 
     let (shift_x, shift_y) = if args.no_crop {
-        (0, 0)
+        (0.0, 0.0)
     } else {
         image_util::crop_images(&mut images)?
     };
