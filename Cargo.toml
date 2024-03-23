@@ -1,9 +1,10 @@
 [package]
 name = "spritter"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["fgardt <me@fgardt.dev>"]
 description = "Spritesheet generator for factorio"
+repository = "https://github.com/fgardt/factorio-spritter"
 
 [profile.release]
 strip = true
@@ -17,7 +18,9 @@ nursery = "warn"
 pedantic = "warn"
 unwrap_used = "warn"
 expect_used = "warn"
+module_name_repetitions = "allow"
 cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
 cast_possible_wrap = "allow"
 cast_lossless = "allow"
 cast_sign_loss = "allow"

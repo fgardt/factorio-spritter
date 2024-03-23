@@ -7,6 +7,7 @@ use std::{
 use clap::{Args, Parser, Subcommand};
 use image::{ImageBuffer, RgbaImage};
 use image_util::ImageBufferExt;
+use lua::LuaOutput;
 use rayon::prelude::*;
 
 #[macro_use]
@@ -14,6 +15,7 @@ extern crate log;
 
 mod image_util;
 mod logger;
+mod lua;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about=None)]
@@ -133,13 +135,62 @@ impl SpritesheetArgs {
             return Ok(());
         }
 
-        sources.par_iter().for_each(|source| {
-            if let Err(err) = generate_spritesheet(self, source) {
-                error!("{}: {err}", source.display(),);
+        let res = sources
+            .par_iter()
+            .filter_map(|source| match generate_spritesheet(self, source) {
+                Ok(res_name) => {
+                    if res_name.is_empty() {
+                        None
+                    } else {
+                        Some(res_name)
+                    }
+                }
+                Err(err) => {
+                    error!("{}: {err}", source.display());
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        'r_group: {
+            if self.recursive && self.lua && !res.is_empty() {
+                #[allow(clippy::unwrap_used)]
+                let name = self
+                    .source
+                    .components()
+                    .last()
+                    .unwrap()
+                    .as_os_str()
+                    .to_string_lossy()
+                    .to_string();
+
+                if res.contains(&name) {
+                    warn!("skipping lua generation for recursive group: collision with source folder name");
+                    break 'r_group;
+                }
+
+                let mut out_path = self.output.join(name);
+                out_path.set_extension("lua");
+
+                let mut output = LuaOutput::new();
+
+                for name in res {
+                    output = output.reexport(name);
+                }
+
+                output.save(out_path)?;
             }
-        });
+        }
 
         Ok(())
+    }
+
+    const fn tile_res(&self) -> usize {
+        if self.hr {
+            64
+        } else {
+            self.tile_resolution
+        }
     }
 }
 
@@ -165,9 +216,10 @@ struct SharedArgs {
 
     /// Output folder
     pub output: PathBuf,
-    // /// Enable lua output generation
-    // #[clap(short, long, action)]
-    // lua: bool,
+
+    /// Enable lua output generation
+    #[clap(short, long, action)]
+    lua: bool,
 }
 
 fn main() -> ExitCode {
@@ -188,22 +240,28 @@ fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn output_name(source: &Path, output_dir: &Path, id: Option<usize>, extension: &str) -> PathBuf {
+fn output_name(
+    source: impl AsRef<Path>,
+    output_dir: impl AsRef<Path>,
+    id: Option<usize>,
+    extension: &str,
+) -> PathBuf {
+    #[allow(clippy::unwrap_used)]
     let name = source
+        .as_ref()
         .components()
         .last()
         .unwrap()
         .as_os_str()
-        .to_str()
-        .unwrap_or_default()
-        .to_owned();
+        .to_string_lossy()
+        .to_string();
 
     let suffixed_name = match id {
         Some(id) => format!("{name}-{id}"),
         None => name,
     };
 
-    let mut out = output_dir.to_path_buf().join(suffixed_name);
+    let mut out = output_dir.as_ref().join(suffixed_name);
     out.set_extension(extension);
 
     out
@@ -239,6 +297,7 @@ fn generate_mipmap_icon(args: &IconArgs) -> Result<(), CommandError> {
     images.sort_by_key(ImageBuffer::width);
     images.reverse();
 
+    #[allow(clippy::unwrap_used)]
     let (base_width, base_height) = images.first().unwrap().dimensions();
     if base_width != base_height {
         Err(IconError::ImageNotSquare)?;
@@ -281,6 +340,13 @@ fn generate_mipmap_icon(args: &IconArgs) -> Result<(), CommandError> {
         .to_image()
         .save_optimized_png(output_name(&args.source, &args.output, None, "png"))?;
 
+    if args.lua {
+        LuaOutput::new()
+            .set("icon_size", base_width)
+            .set("icon_mipmaps", images.len())
+            .save(output_name(&args.source, &args.output, None, "lua"))?;
+    }
+
     Ok(())
 }
 
@@ -294,13 +360,13 @@ enum SpriteSheetError {
 fn generate_spritesheet(
     args: &SpritesheetArgs,
     path: impl AsRef<Path>,
-) -> Result<(), CommandError> {
+) -> Result<String, CommandError> {
     let source = path.as_ref();
     let mut images = image_util::load_from_path(source)?;
 
     if images.is_empty() {
         warn!("{}: no source images found", source.display());
-        return Ok(());
+        return Ok(String::new());
     }
 
     let (shift_x, shift_y) = if args.no_crop {
@@ -309,8 +375,9 @@ fn generate_spritesheet(
         image_util::crop_images(&mut images)?
     };
 
-    let sprite_count = images.len() as u32;
+    #[allow(clippy::unwrap_used)]
     let (sprite_width, sprite_height) = images.first().unwrap().dimensions();
+    let sprite_count = images.len() as u32;
 
     let max_size: u32 = if args.hr { 8192 } else { 2048 };
 
@@ -403,8 +470,14 @@ fn generate_spritesheet(
         sheet.save_optimized_png(path)?;
     }
 
-    let name = output_name(source, &args.output, None, "");
-    let name = name.file_name().unwrap().to_str().unwrap();
+    #[allow(clippy::unwrap_used)]
+    let name = source
+        .components()
+        .last()
+        .unwrap()
+        .as_os_str()
+        .to_string_lossy()
+        .to_string();
 
     if args.no_crop {
         info!("completed {name}, size: ({sprite_width}px, {sprite_height}px)");
@@ -414,7 +487,18 @@ fn generate_spritesheet(
             );
     }
 
-    Ok(())
+    if args.lua {
+        LuaOutput::new()
+            .set("width", sprite_width)
+            .set("height", sprite_height)
+            .set("shift", (shift_x, shift_y, args.tile_res()))
+            .set("scale", 32.0 / args.tile_res() as f64)
+            .set("sprite_count", sprite_count)
+            .set("line_length", cols_per_sheet)
+            .save(output_name(source, &args.output, None, "lua"))?;
+    }
+
+    Ok(name)
 }
 
 /*

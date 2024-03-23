@@ -1,4 +1,6 @@
-[![release](https://github.com/fgardt/factorio-spritter/actions/workflows/release.yml/badge.svg)](https://github.com/fgardt/factorio-spritter/releases)
+![actions status](https://img.shields.io/github/actions/workflow/status/fgardt/factorio-spritter/rust.yml)
+[![release](https://img.shields.io/github/v/release/fgardt/factorio-spritter)](https://github.com/fgardt/factorio-spritter/releases)
+[![ko-fi](https://img.shields.io/badge/Ko--fi-Donate%20-hotpink?logo=kofi&logoColor=white)](https://ko-fi.com/fgardt)
 
 # Spritter
 
@@ -62,7 +64,3 @@ Arguments:
   <OUTPUT>
           Output folder
 ```
-
-## Todo
-
-- Lua output generation
