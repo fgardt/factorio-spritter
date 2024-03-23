@@ -492,6 +492,7 @@ fn generate_spritesheet(
             .set("width", sprite_width)
             .set("height", sprite_height)
             .set("shift", (shift_x, shift_y, args.tile_res()))
+            .set("scale", 32.0 / args.tile_res() as f64)
             .set("sprite_count", sprite_count)
             .set("line_length", cols_per_sheet)
             .save(output_name(source, &args.output, None, "lua"))?;
