@@ -37,6 +37,8 @@ Arguments:
   <OUTPUT>  Output folder
 
 Options:
+  -l, --lua
+          Enable lua output generation
   -r, --recursive
           Recursive search for images. Each folder will be a separate sprite sheet
   -t, --tile-resolution <TILE_RESOLUTION>
@@ -63,4 +65,8 @@ Arguments:
 
   <OUTPUT>
           Output folder
+
+Options:
+  -l, --lua
+          Enable lua output generation
 ```
