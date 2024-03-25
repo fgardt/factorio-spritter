@@ -30,5 +30,5 @@ clap = { version = "4.5", features = ["derive"] }
 env_logger = "0.10"
 image = { version = "0.25", features = ["png"] }
 log = "0.4"
-rayon = "1.9.0"
+rayon = "1.10.0"
 thiserror = "1.0"
