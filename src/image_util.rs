@@ -111,13 +111,17 @@ pub fn crop_images(images: &mut Vec<RgbaImage>) -> ImgUtilResult<(f64, f64)> {
 
         if min_x > local_min_x {
             min_x = local_min_x;
-        } else if max_x < local_max_x {
+        }
+
+        if max_x < local_max_x {
             max_x = local_max_x;
         }
 
         if min_y > local_min_y {
             min_y = local_min_y;
-        } else if max_y < local_max_y {
+        }
+
+        if max_y < local_max_y {
             max_y = local_max_y;
         }
     }
