@@ -157,6 +157,7 @@ impl SpritesheetArgs {
                 #[allow(clippy::unwrap_used)]
                 let name = self
                     .source
+                    .canonicalize()?
                     .components()
                     .last()
                     .unwrap()
@@ -245,10 +246,11 @@ fn output_name(
     output_dir: impl AsRef<Path>,
     id: Option<usize>,
     extension: &str,
-) -> PathBuf {
+) -> Result<PathBuf, CommandError> {
     #[allow(clippy::unwrap_used)]
     let name = source
         .as_ref()
+        .canonicalize()?
         .components()
         .last()
         .unwrap()
@@ -264,7 +266,7 @@ fn output_name(
     let mut out = output_dir.as_ref().join(suffixed_name);
     out.set_extension(extension);
 
-    out
+    Ok(out)
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -338,13 +340,13 @@ fn generate_mipmap_icon(args: &IconArgs) -> Result<(), CommandError> {
 
     image::imageops::crop_imm(&res, 0, 0, total_width, res.height())
         .to_image()
-        .save_optimized_png(output_name(&args.source, &args.output, None, "png"))?;
+        .save_optimized_png(output_name(&args.source, &args.output, None, "png")?)?;
 
     if args.lua {
         LuaOutput::new()
             .set("icon_size", base_width)
             .set("icon_mipmaps", images.len())
-            .save(output_name(&args.source, &args.output, None, "lua"))?;
+            .save(output_name(&args.source, &args.output, None, "lua")?)?;
     }
 
     Ok(())
@@ -436,13 +438,13 @@ fn generate_spritesheet(
     if sheet_count == 1 {
         sheets.push((
             RgbaImage::new(sheet_width, sheet_height),
-            output_name(source, &args.output, None, "png"),
+            output_name(source, &args.output, None, "png")?,
         ));
     } else {
         for idx in 0..sheet_count {
             sheets.push((
                 RgbaImage::new(sheet_width, sheet_height),
-                output_name(source, &args.output, Some(idx), "png"),
+                output_name(source, &args.output, Some(idx), "png")?,
             ));
         }
     }
@@ -472,6 +474,7 @@ fn generate_spritesheet(
 
     #[allow(clippy::unwrap_used)]
     let name = source
+        .canonicalize()?
         .components()
         .last()
         .unwrap()
@@ -495,7 +498,7 @@ fn generate_spritesheet(
             .set("scale", 32.0 / args.tile_res() as f64)
             .set("sprite_count", sprite_count)
             .set("line_length", cols_per_sheet)
-            .save(output_name(source, &args.output, None, "lua"))?;
+            .save(output_name(source, &args.output, None, "lua")?)?;
     }
 
     Ok(name)
