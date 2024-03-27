@@ -250,11 +250,13 @@ impl SpritesheetArgs {
     }
 
     fn tile_res(&self) -> usize {
-        if self.hr {
-            64
+        let res = if self.hr {
+            64.0
         } else {
-            (self.tile_resolution as f64 * self.scale).round() as usize
-        }
+            self.tile_resolution as f64
+        };
+
+        (res * self.scale).round() as usize
     }
 }
 
