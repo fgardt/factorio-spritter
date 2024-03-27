@@ -90,12 +90,13 @@ struct SpritesheetArgs {
     #[clap(short, long, action)]
     pub recursive: bool,
 
-    /// Resolution in pixel per tile
+    /// Resolution of the input sprites in pixels / tile
     #[clap(short, long, default_value_t = 32)]
     pub tile_resolution: usize,
 
-    /// Set when this is considered a high resolution texture
-    #[clap(long, action)]
+    /// Set when the output file should be considered to be HR (8k x 8k resolution limit).
+    /// When set the tile resolution will be set to 64 unless specified otherwise.
+    #[clap(long, action, verbatim_doc_comment)]
     pub hr: bool,
 
     /// Set when the sprites should not be cropped
@@ -239,7 +240,7 @@ impl SpritesheetArgs {
                 let mut output = LuaOutput::new();
 
                 for name in res {
-                    output = output.reexport(name);
+                    output = output.reexport(format!("{}{name}", self.prefix));
                 }
 
                 output.save(out_path)?;
@@ -250,7 +251,7 @@ impl SpritesheetArgs {
     }
 
     fn tile_res(&self) -> usize {
-        let res = if self.hr {
+        let res = if self.hr && self.tile_resolution == 32 {
             64.0
         } else {
             self.tile_resolution as f64

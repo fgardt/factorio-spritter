@@ -44,9 +44,10 @@ Options:
   -r, --recursive
           Recursive search for images. Each folder will be a separate sprite sheet
   -t, --tile-resolution <TILE_RESOLUTION>
-          Resolution in pixel per tile [default: 32]
+          Resolution of the input sprites in pixels / tile [default: 32]
       --hr
-          Set when this is considered a high resolution texture
+          Set when the output file should be considered to be HR (8k x 8k resolution limit).
+          When set the tile resolution will be set to 64 unless specified otherwise.
       --no-crop
           Set when the sprites should not be cropped
   -s, --scale <SCALE>
