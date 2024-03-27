@@ -10,7 +10,7 @@ use env_logger::{
 use log::Level;
 
 pub fn init(level: &str) {
-    let env = Env::default().filter_or("LOG_LEVEL", level);
+    let env = Env::default().filter_or("RUST_LOG", level);
 
     Builder::from_env(env)
         .format(|buf, record| {
