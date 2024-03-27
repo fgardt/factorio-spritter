@@ -39,6 +39,8 @@ Arguments:
 Options:
   -l, --lua
           Enable lua output generation
+  -p, --prefix <PREFIX>
+          Prefix to add to the output file name [default: ]
   -r, --recursive
           Recursive search for images. Each folder will be a separate sprite sheet
   -t, --tile-resolution <TILE_RESOLUTION>
@@ -47,6 +49,11 @@ Options:
           Set when this is considered a high resolution texture
       --no-crop
           Set when the sprites should not be cropped
+  -s, --scale <SCALE>
+          Set a scaling factor to rescale the used sprites by.
+          Values < 1.0 will shrink the sprites. Values > 1.0 will enlarge them. [default: 1]
+      --scale-filter <SCALE_FILTER>
+          The scaling filter to use when scaling sprites [default: catmull-rom] [possible values: nearest, triangle, catmull-rom, gaussian, lanczos3]
 ```
 
 ### Icon
@@ -57,16 +64,15 @@ Generate a mipmap icon from a folder of images
 
 The individual images are used as the respective mip levels and combined into a single image
 
-Usage: spritter icon <SOURCE> <OUTPUT>
+Usage: spritter icon [OPTIONS] <SOURCE> <OUTPUT>
 
 Arguments:
-  <SOURCE>
-          Folder containing the individual sprites
-
-  <OUTPUT>
-          Output folder
+  <SOURCE> Folder containing the individual sprites
+  <OUTPUT> Output folder
 
 Options:
   -l, --lua
           Enable lua output generation
+  -p, --prefix <PREFIX>
+          Prefix to add to the output file name
 ```
