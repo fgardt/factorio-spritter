@@ -438,7 +438,7 @@ enum SpriteSheetError {
     ImagesNotSameSize,
 }
 
-#[allow(clippy::too_many_lines)]
+#[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
 fn generate_spritesheet(
     args: &SpritesheetArgs,
     path: impl AsRef<Path>,
@@ -481,6 +481,8 @@ fn generate_spritesheet(
     // unnecessarily overengineered PoS to calculate special sheet sizes if only 1 sheet is needed
     let (sheet_width, sheet_height, cols_per_sheet, _rows_per_sheet, max_per_sheet) =
         if max_per_sheet <= sprite_count {
+            debug!("multiple sheets needed: {max_cols_per_sheet}x{max_rows_per_sheet}");
+
             (
                 sprite_width * max_cols_per_sheet,
                 sprite_height * max_rows_per_sheet,
@@ -492,6 +494,8 @@ fn generate_spritesheet(
             // everything can fit 1 sheet -> custom arrange in as square as possible
             if sprite_width == sprite_height {
                 let sheet_size = (sprite_count as f64).sqrt().ceil() as u32;
+                debug!("singular square sheet: {sheet_size}x{sheet_size}");
+
                 (
                     sprite_width * sheet_size,
                     sprite_height * sheet_size,
@@ -503,13 +507,24 @@ fn generate_spritesheet(
                 let mut cols = 1;
                 let mut rows = 1;
 
+                trace!("calculating custom sheet size");
                 while cols * rows < sprite_count {
                     if cols * sprite_width <= rows * sprite_height {
                         cols += 1;
+                        trace!("cols++ | {cols}x{rows}");
                     } else {
                         rows += 1;
+                        trace!("rows++ | {cols}x{rows}");
                     }
                 }
+
+                let empty = cols * rows - sprite_count;
+                if empty / cols > 0 {
+                    rows -= empty / cols;
+                    trace!("rows-- | {cols}x{rows}");
+                }
+
+                debug!("singular custom sheet: {cols}x{rows}");
 
                 (
                     sprite_width * cols,
