@@ -145,6 +145,7 @@ pub fn crop_images(images: &mut Vec<RgbaImage>) -> ImgUtilResult<(f64, f64)> {
     let cropped_height = max_y - min_y + 1;
 
     debug!("cropping from {raw_width}x{raw_height} to {cropped_width}x{cropped_height}");
+    trace!("min_x: {min_x}, min_y: {min_y}, max_x: {max_x}, max_y: {max_y}");
 
     // crop images
     for image in images {
@@ -155,8 +156,8 @@ pub fn crop_images(images: &mut Vec<RgbaImage>) -> ImgUtilResult<(f64, f64)> {
     }
 
     // calculate how the center point shifted relative to the original image
-    let shift_x = (f64::from(raw_width - cropped_width) / 2.0) - f64::from(min_x);
-    let shift_y = (f64::from(raw_height - cropped_height) / 2.0) - f64::from(min_y);
+    let shift_x = -((f64::from(raw_width - cropped_width) / 2.0) - f64::from(min_x));
+    let shift_y = -((f64::from(raw_height - cropped_height) / 2.0) - f64::from(min_y));
 
     trace!("shifted by ({shift_x}, {shift_y})");
 
