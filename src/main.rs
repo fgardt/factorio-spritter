@@ -4,11 +4,13 @@ use std::{
     process::ExitCode,
 };
 
-use clap::{Args, Parser, Subcommand};
-use image::{ImageBuffer, RgbaImage};
-use image_util::ImageBufferExt;
-use lua::LuaOutput;
+use clap::{builder::PossibleValue, Args, Parser, Subcommand, ValueEnum};
+use image::{
+    imageops::{self, FilterType},
+    ImageBuffer, RgbaImage,
+};
 use rayon::prelude::*;
+use strum::{EnumIter, VariantArray};
 
 #[macro_use]
 extern crate log;
@@ -16,6 +18,9 @@ extern crate log;
 mod image_util;
 mod logger;
 mod lua;
+
+use image_util::ImageBufferExt;
+use lua::LuaOutput;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about=None)]
@@ -86,7 +91,7 @@ struct SpritesheetArgs {
     pub recursive: bool,
 
     /// Resolution in pixel per tile
-    #[clap(short, long, default_value = "32")]
+    #[clap(short, long, default_value_t = 32)]
     pub tile_resolution: usize,
 
     /// Set when this is considered a high resolution texture
@@ -96,6 +101,64 @@ struct SpritesheetArgs {
     /// Set when the sprites should not be cropped
     #[clap(long, action)]
     pub no_crop: bool,
+
+    /// Set a scaling factor to rescale the used sprites by.
+    /// Values < 1.0 will shrink the sprites. Values > 1.0 will enlarge them.
+    #[clap(short, long, default_value_t = 1.0, verbatim_doc_comment)]
+    pub scale: f64,
+
+    /// The scaling filter to use when scaling sprites
+    #[clap(long, default_value_t = ScaleFilter::CatmullRom, verbatim_doc_comment)]
+    pub scale_filter: ScaleFilter,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, VariantArray)]
+enum ScaleFilter {
+    Nearest,
+    Triangle,
+    CatmullRom,
+    Gaussian,
+    Lanczos3,
+}
+
+impl std::fmt::Display for ScaleFilter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Nearest => write!(f, "nearest"),
+            Self::Triangle => write!(f, "triangle"),
+            Self::CatmullRom => write!(f, "catmull-rom"),
+            Self::Gaussian => write!(f, "gaussian"),
+            Self::Lanczos3 => write!(f, "lanczos3"),
+        }
+    }
+}
+
+impl From<ScaleFilter> for FilterType {
+    fn from(value: ScaleFilter) -> Self {
+        match value {
+            ScaleFilter::Nearest => Self::Nearest,
+            ScaleFilter::Triangle => Self::Triangle,
+            ScaleFilter::CatmullRom => Self::CatmullRom,
+            ScaleFilter::Gaussian => Self::Gaussian,
+            ScaleFilter::Lanczos3 => Self::Lanczos3,
+        }
+    }
+}
+
+impl ValueEnum for ScaleFilter {
+    fn value_variants<'a>() -> &'a [Self] {
+        Self::VARIANTS
+    }
+
+    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
+        Some(PossibleValue::new(match self {
+            Self::Nearest => "nearest",
+            Self::Triangle => "triangle",
+            Self::CatmullRom => "catmull-rom",
+            Self::Gaussian => "gaussian",
+            Self::Lanczos3 => "lanczos3",
+        }))
+    }
 }
 
 impl std::ops::Deref for SpritesheetArgs {
@@ -155,15 +218,15 @@ impl SpritesheetArgs {
         'r_group: {
             if self.recursive && self.lua && !res.is_empty() {
                 #[allow(clippy::unwrap_used)]
-                let name = self
-                    .source
-                    .canonicalize()?
-                    .components()
-                    .last()
-                    .unwrap()
-                    .as_os_str()
-                    .to_string_lossy()
-                    .to_string();
+                let name = self.prefix.clone()
+                    + &self
+                        .source
+                        .canonicalize()?
+                        .components()
+                        .last()
+                        .unwrap()
+                        .as_os_str()
+                        .to_string_lossy();
 
                 if res.contains(&name) {
                     warn!("skipping lua generation for recursive group: collision with source folder name");
@@ -186,11 +249,11 @@ impl SpritesheetArgs {
         Ok(())
     }
 
-    const fn tile_res(&self) -> usize {
+    fn tile_res(&self) -> usize {
         if self.hr {
             64
         } else {
-            self.tile_resolution
+            (self.tile_resolution as f64 * self.scale).round() as usize
         }
     }
 }
@@ -221,6 +284,10 @@ struct SharedArgs {
     /// Enable lua output generation
     #[clap(short, long, action)]
     lua: bool,
+
+    /// Prefix to add to the output file name
+    #[clap(short, long, default_value_t = String::new())]
+    prefix: String,
 }
 
 fn main() -> ExitCode {
@@ -245,6 +312,7 @@ fn output_name(
     source: impl AsRef<Path>,
     output_dir: impl AsRef<Path>,
     id: Option<usize>,
+    prefix: &str,
     extension: &str,
 ) -> Result<PathBuf, CommandError> {
     #[allow(clippy::unwrap_used)]
@@ -258,12 +326,12 @@ fn output_name(
         .to_string_lossy()
         .to_string();
 
-    let suffixed_name = match id {
-        Some(id) => format!("{name}-{id}"),
-        None => name,
-    };
+    let pre_suff_name = id.map_or_else(
+        || format!("{prefix}{name}"),
+        |id| format!("{prefix}{name}-{id}"),
+    );
 
-    let mut out = output_dir.as_ref().join(suffixed_name);
+    let mut out = output_dir.as_ref().join(pre_suff_name);
     out.set_extension(extension);
 
     Ok(out)
@@ -340,13 +408,25 @@ fn generate_mipmap_icon(args: &IconArgs) -> Result<(), CommandError> {
 
     image::imageops::crop_imm(&res, 0, 0, total_width, res.height())
         .to_image()
-        .save_optimized_png(output_name(&args.source, &args.output, None, "png")?)?;
+        .save_optimized_png(output_name(
+            &args.source,
+            &args.output,
+            None,
+            &args.prefix,
+            "png",
+        )?)?;
 
     if args.lua {
         LuaOutput::new()
             .set("icon_size", base_width)
             .set("icon_mipmaps", images.len())
-            .save(output_name(&args.source, &args.output, None, "lua")?)?;
+            .save(output_name(
+                &args.source,
+                &args.output,
+                None,
+                &args.prefix,
+                "lua",
+            )?)?;
     }
 
     Ok(())
@@ -369,6 +449,17 @@ fn generate_spritesheet(
     if images.is_empty() {
         warn!("{}: no source images found", source.display());
         return Ok(String::new());
+    }
+
+    // scale images
+    if (args.scale - 1.0).abs() > f64::EPSILON {
+        for image in &mut images {
+            let (width, height) = image.dimensions();
+            let width = (f64::from(width) * args.scale).round() as u32;
+            let height = (f64::from(height) * args.scale).round() as u32;
+
+            *image = imageops::resize(image, width, height, args.scale_filter.into());
+        }
     }
 
     let (shift_x, shift_y) = if args.no_crop {
@@ -438,13 +529,13 @@ fn generate_spritesheet(
     if sheet_count == 1 {
         sheets.push((
             RgbaImage::new(sheet_width, sheet_height),
-            output_name(source, &args.output, None, "png")?,
+            output_name(source, &args.output, None, &args.prefix, "png")?,
         ));
     } else {
         for idx in 0..sheet_count {
             sheets.push((
                 RgbaImage::new(sheet_width, sheet_height),
-                output_name(source, &args.output, Some(idx), "png")?,
+                output_name(source, &args.output, Some(idx), &args.prefix, "png")?,
             ));
         }
     }
@@ -483,11 +574,15 @@ fn generate_spritesheet(
         .to_string();
 
     if args.no_crop {
-        info!("completed {name}, size: ({sprite_width}px, {sprite_height}px)");
+        info!(
+            "completed {}{name}, size: ({sprite_width}px, {sprite_height}px)",
+            args.prefix
+        );
     } else {
         info!(
-                "completed {name}, size: ({sprite_width}px, {sprite_height}px), shift: ({shift_x}px, {shift_y}px)"
-            );
+            "completed {}{name}, size: ({sprite_width}px, {sprite_height}px), shift: ({shift_x}px, {shift_y}px)",
+            args.prefix
+        );
     }
 
     if args.lua {
@@ -498,7 +593,13 @@ fn generate_spritesheet(
             .set("scale", 32.0 / args.tile_res() as f64)
             .set("sprite_count", sprite_count)
             .set("line_length", cols_per_sheet)
-            .save(output_name(source, &args.output, None, "lua")?)?;
+            .save(output_name(
+                source,
+                &args.output,
+                None,
+                &args.prefix,
+                "lua",
+            )?)?;
     }
 
     Ok(name)
