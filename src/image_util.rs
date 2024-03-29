@@ -68,7 +68,7 @@ fn load_image_from_file(path: &Path) -> ImgUtilResult<RgbaImage> {
     Ok(image)
 }
 
-pub fn crop_images(images: &mut Vec<RgbaImage>) -> ImgUtilResult<(f64, f64)> {
+pub fn crop_images(images: &mut Vec<RgbaImage>, limit: u8) -> ImgUtilResult<(f64, f64)> {
     if images.is_empty() {
         return Err(ImgUtilError::NoImagesToCrop);
     }
@@ -89,13 +89,13 @@ pub fn crop_images(images: &mut Vec<RgbaImage>) -> ImgUtilResult<(f64, f64)> {
 
         let mut x = image
             .enumerate_pixels()
-            .filter_map(|(x, _, pxl)| if pxl[3] > 0 { Some(x) } else { None })
+            .filter_map(|(x, _, pxl)| if pxl[3] > limit { Some(x) } else { None })
             .collect::<Vec<_>>();
         x.sort_unstable();
 
         let mut y = image
             .enumerate_pixels()
-            .filter_map(|(_, y, pxl)| if pxl[3] > 0 { Some(y) } else { None })
+            .filter_map(|(_, y, pxl)| if pxl[3] > limit { Some(y) } else { None })
             .collect::<Vec<_>>();
         y.sort_unstable();
 
@@ -156,8 +156,16 @@ pub fn crop_images(images: &mut Vec<RgbaImage>) -> ImgUtilResult<(f64, f64)> {
     }
 
     // calculate how the center point shifted relative to the original image
-    let shift_x = -((f64::from(raw_width - cropped_width) / 2.0) - f64::from(min_x));
-    let shift_y = -((f64::from(raw_height - cropped_height) / 2.0) - f64::from(min_y));
+    let mut shift_x = -((f64::from(raw_width - cropped_width) / 2.0) - f64::from(min_x));
+    let mut shift_y = -((f64::from(raw_height - cropped_height) / 2.0) - f64::from(min_y));
+
+    if shift_x == 0.0 {
+        shift_x = 0.0;
+    }
+
+    if shift_y == 0.0 {
+        shift_y = 0.0;
+    }
 
     trace!("shifted by ({shift_x}, {shift_y})");
 

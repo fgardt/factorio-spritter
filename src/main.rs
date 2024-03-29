@@ -103,6 +103,11 @@ struct SpritesheetArgs {
     #[clap(long, action)]
     pub no_crop: bool,
 
+    /// Sets the max alpha value to consider a pixel as transparent [0-255].
+    /// Use a higher value in case your inputs have slightly transparent pixels and don't crop nicely.
+    #[clap(short = 'a', long, default_value_t = 0, verbatim_doc_comment)]
+    pub crop_alpha: u8,
+
     /// Set a scaling factor to rescale the used sprites by.
     /// Values < 1.0 will shrink the sprites. Values > 1.0 will enlarge them.
     #[clap(short, long, default_value_t = 1.0, verbatim_doc_comment)]
@@ -468,7 +473,7 @@ fn generate_spritesheet(
     let (shift_x, shift_y) = if args.no_crop {
         (0.0, 0.0)
     } else {
-        image_util::crop_images(&mut images)?
+        image_util::crop_images(&mut images, args.crop_alpha)?
     };
 
     #[allow(clippy::unwrap_used)]
