@@ -8,8 +8,6 @@ pub enum LuaValue {
     Bool(bool),
     Shift(f64, f64, usize),
     Require(String),
-    Array(Box<[LuaValue]>),
-    Table(LuaOutput),
 }
 
 impl From<String> for LuaValue {
@@ -108,18 +106,6 @@ impl From<(f64, f64, usize)> for LuaValue {
     }
 }
 
-impl From<Box<[Self]>> for LuaValue {
-    fn from(value: Box<[Self]>) -> Self {
-        Self::Array(value)
-    }
-}
-
-impl From<LuaOutput> for LuaValue {
-    fn from(value: LuaOutput) -> Self {
-        Self::Table(value)
-    }
-}
-
 impl std::fmt::Display for LuaValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -129,19 +115,10 @@ impl std::fmt::Display for LuaValue {
             Self::Bool(value) => write!(f, "{value}"),
             Self::Shift(x, y, res) => write!(f, "{{x = {x} / {res}, y = {y} / {res}}}"),
             Self::Require(value) => write!(f, "require(\"{value}\")"),
-            Self::Array(arr) => {
-                write!(f, "{{")?;
-                for value in arr.iter() {
-                    write!(f, "{value},")?;
-                }
-                write!(f, "}}")
-            }
-            Self::Table(table) => write!(f, "{table}"),
         }
     }
 }
 
-#[derive(Debug, Clone)]
 pub struct LuaOutput {
     map: BTreeMap<String, LuaValue>,
 }
@@ -183,20 +160,6 @@ impl LuaOutput {
         }
 
         writeln!(file, "}}")?;
-
-        Ok(())
-    }
-}
-
-impl std::fmt::Display for LuaOutput {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{{")?;
-
-        for (key, data) in &self.map {
-            write!(f, "[\"{key}\"] = {data},")?;
-        }
-
-        write!(f, "}}")?;
 
         Ok(())
     }
