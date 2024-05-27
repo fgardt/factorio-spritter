@@ -451,6 +451,8 @@ fn generate_spritesheet(
     args: &SpritesheetArgs,
     path: impl AsRef<Path>,
 ) -> Result<String, CommandError> {
+    static MAX_SIZE: u32 = 8192;
+
     let source = path.as_ref();
     let mut images = image_util::load_from_path(source)?;
 
@@ -480,10 +482,8 @@ fn generate_spritesheet(
     let (sprite_width, sprite_height) = images.first().unwrap().dimensions();
     let sprite_count = images.len() as u32;
 
-    let max_size: u32 = if args.hr { 8192 } else { 2048 };
-
-    let max_cols_per_sheet = max_size / sprite_width;
-    let max_rows_per_sheet = max_size / sprite_height;
+    let max_cols_per_sheet = MAX_SIZE / sprite_width;
+    let max_rows_per_sheet = MAX_SIZE / sprite_height;
     let max_per_sheet = max_rows_per_sheet * max_cols_per_sheet;
 
     // unnecessarily overengineered PoS to calculate special sheet sizes if only 1 sheet is needed
@@ -555,12 +555,29 @@ fn generate_spritesheet(
             output_name(source, &args.output, None, &args.prefix, "png")?,
         ));
     } else {
-        for idx in 0..sheet_count {
+        for idx in 0..(sheet_count - 1) {
             sheets.push((
                 RgbaImage::new(sheet_width, sheet_height),
                 output_name(source, &args.output, Some(idx), &args.prefix, "png")?,
             ));
         }
+
+        // last sheet can be smaller
+        sheets.push((
+            RgbaImage::new(
+                sheet_width,
+                sprite_height
+                    * (f64::from(sprite_count % max_per_sheet) / f64::from(max_cols_per_sheet))
+                        .ceil() as u32,
+            ),
+            output_name(
+                source,
+                &args.output,
+                Some(sheet_count - 1),
+                &args.prefix,
+                "png",
+            )?,
+        ));
     }
 
     // arrange sprites on sheets
@@ -616,6 +633,9 @@ fn generate_spritesheet(
             .set("scale", 32.0 / args.tile_res() as f64)
             .set("sprite_count", sprite_count)
             .set("line_length", cols_per_sheet)
+            .set("lines_per_file", max_rows_per_sheet)
+            .set("file_count", sheet_count)
+            .set("name", name.clone())
             .save(output_name(
                 source,
                 &args.output,
