@@ -453,7 +453,7 @@ enum SpriteSheetError {
 }
 
 /// Maximum side length of a single graphic file to load in Factorio
-static MAX_SIZE: u32 = 1000; //8192;
+static MAX_SIZE: u32 = 8192;
 
 #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
 fn generate_spritesheet(
