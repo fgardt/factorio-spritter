@@ -1,6 +1,6 @@
 [package]
 name = "spritter"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 authors = ["fgardt <me@fgardt.dev>"]
 description = "Spritesheet generator for factorio"
@@ -14,8 +14,8 @@ lto = "thin"
 unsafe_code = "forbid"
 
 [lints.clippy]
-nursery = "warn"
-pedantic = "warn"
+nursery = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
 unwrap_used = "warn"
 expect_used = "warn"
 module_name_repetitions = "allow"
