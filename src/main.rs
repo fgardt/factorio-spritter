@@ -80,6 +80,7 @@ enum CommandError {
     IconError(#[from] IconError),
 }
 
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Args, Debug)]
 struct SpritesheetArgs {
     // shared args
@@ -116,6 +117,11 @@ struct SpritesheetArgs {
     /// The scaling filter to use when scaling sprites
     #[clap(long, default_value_t = ScaleFilter::CatmullRom, verbatim_doc_comment)]
     pub scale_filter: ScaleFilter,
+
+    /// Automatically split each frame into multiple subframes if the frames would not fit on a single sheet.
+    /// This is so that you can use large graphics for graphic types that do not allow to specify multiple files for a single layer.
+    #[clap(long, action, verbatim_doc_comment)]
+    pub single_sheet_split_mode: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, VariantArray)]
@@ -446,13 +452,14 @@ enum SpriteSheetError {
     ImagesNotSameSize,
 }
 
+/// Maximum side length of a single graphic file to load in Factorio
+static MAX_SIZE: u32 = 1000; //8192;
+
 #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
 fn generate_spritesheet(
     args: &SpritesheetArgs,
     path: impl AsRef<Path>,
 ) -> Result<String, CommandError> {
-    static MAX_SIZE: u32 = 8192;
-
     let source = path.as_ref();
     let mut images = image_util::load_from_path(source)?;
 
@@ -485,6 +492,77 @@ fn generate_spritesheet(
     let max_cols_per_sheet = MAX_SIZE / sprite_width;
     let max_rows_per_sheet = MAX_SIZE / sprite_height;
     let max_per_sheet = max_rows_per_sheet * max_cols_per_sheet;
+
+    let sheet_count = images.len() / max_per_sheet as usize
+        + usize::from(images.len().rem_euclid(max_per_sheet as usize) > 0);
+
+    #[allow(clippy::unwrap_used)]
+    let name = source
+        .canonicalize()?
+        .components()
+        .last()
+        .unwrap()
+        .as_os_str()
+        .to_string_lossy()
+        .to_string();
+
+    if args.single_sheet_split_mode && sheet_count > 1 {
+        debug!("sprites don't fit on a single sheet, splitting into multiple layers");
+        let layers =
+            generate_subframe_sheets(args, &images, sprite_width, sprite_height, shift_x, shift_y);
+        let mut lua_layers = Vec::with_capacity(layers.len());
+
+        for (idx, layer) in layers.iter().enumerate() {
+            let (sheet, (width, height), (shift_x, shift_y), (cols, rows)) = layer;
+
+            let out = output_name(source, &args.output, Some(idx), &args.prefix, "png")?;
+            sheet.save_optimized_png(&out)?;
+
+            lua_layers.push(
+                LuaOutput::new()
+                    .set("width", *width)
+                    .set("height", *height)
+                    .set("shift", (*shift_x, *shift_y, args.tile_res()))
+                    .set("scale", 32.0 / args.tile_res() as f64)
+                    .set("sprite_count", sprite_count)
+                    .set("line_length", *cols)
+                    .set("lines_per_file", *rows)
+                    .set("file_count", 1)
+                    .set(
+                        "name",
+                        out.file_stem()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .to_string(),
+                    ),
+            );
+        }
+
+        if args.lua {
+            LuaOutput::new()
+                .set(
+                    "layers",
+                    lua_layers
+                        .iter()
+                        .map(|out| out.clone().into())
+                        .collect::<Box<_>>(),
+                )
+                .save(output_name(
+                    source,
+                    &args.output,
+                    None,
+                    &args.prefix,
+                    "lua",
+                )?)?;
+        }
+
+        info!(
+            "completed {}{name}, split into {} layers",
+            args.prefix,
+            layers.len()
+        );
+        return Ok(name);
+    }
 
     // unnecessarily overengineered PoS to calculate special sheet sizes if only 1 sheet is needed
     let (sheet_width, sheet_height, cols_per_sheet, _rows_per_sheet, max_per_sheet) =
@@ -544,8 +622,7 @@ fn generate_spritesheet(
             }
         };
 
-    let sheet_count = images.len() / max_per_sheet as usize
-        + usize::from(images.len().rem_euclid(max_per_sheet as usize) > 0);
+    debug!("sheet size: {sheet_width}x{sheet_height}");
 
     let mut sheets: Vec<(RgbaImage, PathBuf)> = Vec::with_capacity(sheet_count);
 
@@ -599,23 +676,13 @@ fn generate_spritesheet(
         let x = row * sprite_width;
         let y = line * sprite_height;
 
-        image::imageops::replace(&mut sheets[sheet_idx].0, sprite, i64::from(x), i64::from(y));
+        imageops::replace(&mut sheets[sheet_idx].0, sprite, i64::from(x), i64::from(y));
     }
 
     // save sheets
     for (sheet, path) in sheets {
         sheet.save_optimized_png(path)?;
     }
-
-    #[allow(clippy::unwrap_used)]
-    let name = source
-        .canonicalize()?
-        .components()
-        .last()
-        .unwrap()
-        .as_os_str()
-        .to_string_lossy()
-        .to_string();
 
     if args.no_crop {
         info!(
@@ -630,6 +697,7 @@ fn generate_spritesheet(
     }
 
     if args.lua {
+        let out = output_name(source, &args.output, None, &args.prefix, "lua")?;
         LuaOutput::new()
             .set("width", sprite_width)
             .set("height", sprite_height)
@@ -639,17 +707,105 @@ fn generate_spritesheet(
             .set("line_length", cols_per_sheet)
             .set("lines_per_file", max_rows_per_sheet)
             .set("file_count", sheet_count)
-            .set("name", name.clone())
-            .save(output_name(
-                source,
-                &args.output,
-                None,
-                &args.prefix,
-                "lua",
-            )?)?;
+            .set(
+                "name",
+                out.file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string(),
+            )
+            .save(out)?;
     }
 
     Ok(name)
+}
+
+type SubframeData = (RgbaImage, (u32, u32), (f64, f64), (u32, u32));
+
+fn generate_subframe_sheets(
+    _args: &SpritesheetArgs,
+    images: &[RgbaImage],
+    sprite_width: u32,
+    sprite_height: u32,
+    shift_x: f64,
+    shift_y: f64,
+) -> Box<[SubframeData]> {
+    let sprite_count = images.len() as u32;
+
+    // figure out how many splits are needed (vertically / horizontally)
+    let mut frags_x = 1;
+    let mut frags_y = 1;
+
+    loop {
+        let frag_width = sprite_width.div_ceil(frags_x);
+        let frag_height = sprite_height.div_ceil(frags_y);
+
+        let frags_per_row = MAX_SIZE / frag_width;
+        let frags_per_col = MAX_SIZE / frag_height;
+
+        if frags_per_row * frags_per_col >= sprite_count {
+            break;
+        }
+
+        if frag_width >= frag_height {
+            frags_x += 1;
+        } else {
+            frags_y += 1;
+        }
+    }
+
+    let frag_width = sprite_width.div_ceil(frags_x);
+    let frag_height = sprite_height.div_ceil(frags_y);
+    let mut frag_groups = Vec::with_capacity((frags_x * frags_y) as usize);
+    for y in 0..frags_y {
+        for x in 0..frags_x {
+            // calculate dimesions, offset and shift for each subframe
+            let tx = x * frag_width;
+            let ty = y * frag_height;
+            let width = frag_width.min(sprite_width - tx);
+            let height = frag_height.min(sprite_height - ty);
+
+            // frag_shift = tx + (width / 2) - (sprite_width / 2) + shift_x
+            let frag_shift_x =
+                (f64::from(width) - f64::from(sprite_width)).mul_add(0.5, f64::from(tx) + shift_x);
+            let frag_shift_y = (f64::from(height) - f64::from(sprite_height))
+                .mul_add(0.5, f64::from(ty) + shift_y);
+
+            let frags = images
+                .iter()
+                .map(|frame| imageops::crop_imm(frame, tx, ty, width, height))
+                .collect::<Box<_>>();
+
+            // TODO: autocrop subframes again (?)
+
+            frag_groups.push((frags, (width, height), (frag_shift_x, frag_shift_y)));
+        }
+    }
+
+    // arrange subframes on sheets
+    frag_groups
+        .iter()
+        .map(|(frags, (width, height), (shift_x, shift_y))| {
+            let cols = MAX_SIZE / width;
+            let rows = MAX_SIZE / height;
+            let sheet_width = cols * width;
+            let sheet_height = rows * height;
+
+            let mut sheet = RgbaImage::new(sheet_width, sheet_height);
+
+            for (idx, frag) in frags.iter().enumerate() {
+                let row = idx as u32 % cols;
+                let line = idx as u32 / cols;
+
+                let x = row * width;
+                let y = line * height;
+
+                imageops::replace(&mut sheet, &frag.to_image(), i64::from(x), i64::from(y));
+            }
+
+            (sheet, (*width, *height), (*shift_x, *shift_y), (cols, rows))
+        })
+        .collect()
 }
 
 /*
