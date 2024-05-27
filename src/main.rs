@@ -563,12 +563,16 @@ fn generate_spritesheet(
         }
 
         // last sheet can be smaller
+        let mut last_count = sprite_count % max_per_sheet;
+        if last_count == 0 {
+            last_count = max_per_sheet;
+        }
+
         sheets.push((
             RgbaImage::new(
                 sheet_width,
                 sprite_height
-                    * (f64::from(sprite_count % max_per_sheet) / f64::from(max_cols_per_sheet))
-                        .ceil() as u32,
+                    * (f64::from(last_count) / f64::from(max_cols_per_sheet)).ceil() as u32,
             ),
             output_name(
                 source,
