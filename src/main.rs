@@ -787,8 +787,8 @@ fn generate_subframe_sheets(
         .iter()
         .map(|(frags, (width, height), (shift_x, shift_y))| {
             let cols = MAX_SIZE / width;
-            let rows = MAX_SIZE / height;
             let sheet_width = cols * width;
+            let rows = sprite_count.div_ceil(cols);
             let sheet_height = rows * height;
 
             let mut sheet = RgbaImage::new(sheet_width, sheet_height);
