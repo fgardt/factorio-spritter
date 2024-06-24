@@ -31,5 +31,5 @@ env_logger = "0.10"
 image = { version = "0.25", features = ["png"] }
 log = "0.4"
 rayon = "1.9.0"
-strum = { version = "0.26.2", features = ["derive"] }
+strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "1.0"
