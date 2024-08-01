@@ -1,6 +1,6 @@
 [package]
 name = "spritter"
-version = "0.8.1"
+version = "0.8.2"
 edition = "2021"
 authors = ["fgardt <me@fgardt.dev>"]
 description = "Spritesheet generator for factorio"
@@ -30,6 +30,6 @@ clap = { version = "4.5", features = ["derive"] }
 env_logger = "0.10"
 image = { version = "0.25", features = ["png"] }
 log = "0.4"
-rayon = "1.9.0"
-strum = { version = "0.26.2", features = ["derive"] }
+rayon = "1.10"
+strum = { version = "0.26", features = ["derive"] }
 thiserror = "1.0"

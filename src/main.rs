@@ -397,7 +397,6 @@ fn generate_mipmap_icon(args: &IconArgs) -> Result<(), CommandError> {
     let mut res = ImageBuffer::new(base_width * 2, base_height);
 
     let mut next_width = base_width;
-    let mut total_width = 0;
     let mut next_x = 0;
 
     for (idx, sprite) in images.iter().enumerate() {
@@ -417,10 +416,9 @@ fn generate_mipmap_icon(args: &IconArgs) -> Result<(), CommandError> {
 
         next_x += next_width;
         next_width /= 2;
-        total_width += next_width;
     }
 
-    image::imageops::crop_imm(&res, 0, 0, total_width, res.height())
+    image::imageops::crop_imm(&res, 0, 0, next_x, res.height())
         .to_image()
         .save_optimized_png(output_name(
             &args.source,
@@ -565,7 +563,7 @@ fn generate_spritesheet(
     }
 
     // unnecessarily overengineered PoS to calculate special sheet sizes if only 1 sheet is needed
-    let (sheet_width, sheet_height, cols_per_sheet, _rows_per_sheet, max_per_sheet) =
+    let (sheet_width, sheet_height, cols_per_sheet, rows_per_sheet, max_per_sheet) =
         if max_per_sheet <= sprite_count {
             debug!("multiple sheets needed: {max_cols_per_sheet}x{max_rows_per_sheet}");
 
@@ -578,48 +576,35 @@ fn generate_spritesheet(
             )
         } else {
             // everything can fit 1 sheet -> custom arrange in as square as possible
-            if sprite_width == sprite_height {
-                let sheet_size = (sprite_count as f64).sqrt().ceil() as u32;
-                debug!("singular square sheet: {sheet_size}x{sheet_size}");
+            let mut cols = 1;
+            let mut rows = 1;
 
-                (
-                    sprite_width * sheet_size,
-                    sprite_height * sheet_size,
-                    sheet_size,
-                    sheet_size,
-                    sheet_size * sheet_size,
-                )
-            } else {
-                let mut cols = 1;
-                let mut rows = 1;
-
-                trace!("calculating custom sheet size");
-                while cols * rows < sprite_count {
-                    if cols * sprite_width <= rows * sprite_height {
-                        cols += 1;
-                        trace!("cols++ | {cols}x{rows}");
-                    } else {
-                        rows += 1;
-                        trace!("rows++ | {cols}x{rows}");
-                    }
+            trace!("calculating custom sheet size");
+            while cols * rows < sprite_count {
+                if cols * sprite_width <= rows * sprite_height {
+                    cols += 1;
+                    trace!("cols++ | {cols}x{rows}");
+                } else {
+                    rows += 1;
+                    trace!("rows++ | {cols}x{rows}");
                 }
-
-                let empty = cols * rows - sprite_count;
-                if empty / cols > 0 {
-                    rows -= empty / cols;
-                    trace!("rows-- | {cols}x{rows}");
-                }
-
-                debug!("singular custom sheet: {cols}x{rows}");
-
-                (
-                    sprite_width * cols,
-                    sprite_height * rows,
-                    cols,
-                    rows,
-                    cols * rows,
-                )
             }
+
+            let empty = cols * rows - sprite_count;
+            if empty / cols > 0 {
+                rows -= empty / cols;
+                trace!("rows-- | {cols}x{rows}");
+            }
+
+            debug!("singular custom sheet: {cols}x{rows}");
+
+            (
+                sprite_width * cols,
+                sprite_height * rows,
+                cols,
+                rows,
+                cols * rows,
+            )
         };
 
     debug!("sheet size: {sheet_width}x{sheet_height}");
@@ -705,7 +690,7 @@ fn generate_spritesheet(
             .set("scale", 32.0 / args.tile_res() as f64)
             .set("sprite_count", sprite_count)
             .set("line_length", cols_per_sheet)
-            .set("lines_per_file", max_rows_per_sheet)
+            .set("lines_per_file", rows_per_sheet)
             .set("file_count", sheet_count)
             .set(
                 "name",
