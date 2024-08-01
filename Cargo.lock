@@ -974,7 +974,7 @@ dependencies = [
 
 [[package]]
 name = "spritter"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "clap",
  "env_logger",
