@@ -576,48 +576,35 @@ fn generate_spritesheet(
             )
         } else {
             // everything can fit 1 sheet -> custom arrange in as square as possible
-            if sprite_width == sprite_height {
-                let sheet_size = (sprite_count as f64).sqrt().ceil() as u32;
-                debug!("singular square sheet: {sheet_size}x{sheet_size}");
+            let mut cols = 1;
+            let mut rows = 1;
 
-                (
-                    sprite_width * sheet_size,
-                    sprite_height * sheet_size,
-                    sheet_size,
-                    sheet_size,
-                    sheet_size * sheet_size,
-                )
-            } else {
-                let mut cols = 1;
-                let mut rows = 1;
-
-                trace!("calculating custom sheet size");
-                while cols * rows < sprite_count {
-                    if cols * sprite_width <= rows * sprite_height {
-                        cols += 1;
-                        trace!("cols++ | {cols}x{rows}");
-                    } else {
-                        rows += 1;
-                        trace!("rows++ | {cols}x{rows}");
-                    }
+            trace!("calculating custom sheet size");
+            while cols * rows < sprite_count {
+                if cols * sprite_width <= rows * sprite_height {
+                    cols += 1;
+                    trace!("cols++ | {cols}x{rows}");
+                } else {
+                    rows += 1;
+                    trace!("rows++ | {cols}x{rows}");
                 }
-
-                let empty = cols * rows - sprite_count;
-                if empty / cols > 0 {
-                    rows -= empty / cols;
-                    trace!("rows-- | {cols}x{rows}");
-                }
-
-                debug!("singular custom sheet: {cols}x{rows}");
-
-                (
-                    sprite_width * cols,
-                    sprite_height * rows,
-                    cols,
-                    rows,
-                    cols * rows,
-                )
             }
+
+            let empty = cols * rows - sprite_count;
+            if empty / cols > 0 {
+                rows -= empty / cols;
+                trace!("rows-- | {cols}x{rows}");
+            }
+
+            debug!("singular custom sheet: {cols}x{rows}");
+
+            (
+                sprite_width * cols,
+                sprite_height * rows,
+                cols,
+                rows,
+                cols * rows,
+            )
         };
 
     debug!("sheet size: {sheet_width}x{sheet_height}");
