@@ -565,7 +565,7 @@ fn generate_spritesheet(
     }
 
     // unnecessarily overengineered PoS to calculate special sheet sizes if only 1 sheet is needed
-    let (sheet_width, sheet_height, cols_per_sheet, _rows_per_sheet, max_per_sheet) =
+    let (sheet_width, sheet_height, cols_per_sheet, rows_per_sheet, max_per_sheet) =
         if max_per_sheet <= sprite_count {
             debug!("multiple sheets needed: {max_cols_per_sheet}x{max_rows_per_sheet}");
 
@@ -705,7 +705,7 @@ fn generate_spritesheet(
             .set("scale", 32.0 / args.tile_res() as f64)
             .set("sprite_count", sprite_count)
             .set("line_length", cols_per_sheet)
-            .set("lines_per_file", max_rows_per_sheet)
+            .set("lines_per_file", rows_per_sheet)
             .set("file_count", sheet_count)
             .set(
                 "name",
