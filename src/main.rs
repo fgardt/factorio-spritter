@@ -397,7 +397,6 @@ fn generate_mipmap_icon(args: &IconArgs) -> Result<(), CommandError> {
     let mut res = ImageBuffer::new(base_width * 2, base_height);
 
     let mut next_width = base_width;
-    let mut total_width = 0;
     let mut next_x = 0;
 
     for (idx, sprite) in images.iter().enumerate() {
@@ -417,10 +416,9 @@ fn generate_mipmap_icon(args: &IconArgs) -> Result<(), CommandError> {
 
         next_x += next_width;
         next_width /= 2;
-        total_width += next_width;
     }
 
-    image::imageops::crop_imm(&res, 0, 0, total_width, res.height())
+    image::imageops::crop_imm(&res, 0, 0, next_x, res.height())
         .to_image()
         .save_optimized_png(output_name(
             &args.source,
