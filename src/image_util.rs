@@ -44,7 +44,7 @@ pub fn load_from_path(path: &Path) -> ImgUtilResult<Vec<RgbaImage>> {
     files.sort_by(|a, b| {
         let a = a.to_string_lossy().into_owned();
         let b = b.to_string_lossy().into_owned();
-        natord::compare_ignore_case(&a, &b)
+        natord::compare(&a, &b)
     });
 
     for path in files {
