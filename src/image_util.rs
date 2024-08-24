@@ -41,7 +41,11 @@ pub fn load_from_path(path: &Path) -> ImgUtilResult<Vec<RgbaImage>> {
         .filter_map(|res| res.map_or(None, |e| Some(e.path())))
         .collect::<Vec<_>>();
 
-    files.sort();
+    files.sort_by(|a, b| {
+        let a = a.to_string_lossy().into_owned();
+        let b = b.to_string_lossy().into_owned();
+        natord::compare(&a, &b)
+    });
 
     for path in files {
         // skip directories, no recursive search

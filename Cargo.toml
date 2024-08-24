@@ -33,3 +33,4 @@ log = "0.4"
 rayon = "1.10"
 strum = { version = "0.26", features = ["derive"] }
 thiserror = "1.0"
+natord = "1.0"
