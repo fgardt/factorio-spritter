@@ -92,13 +92,8 @@ struct SpritesheetArgs {
     pub recursive: bool,
 
     /// Resolution of the input sprites in pixels / tile
-    #[clap(short, long, default_value_t = 32)]
+    #[clap(short, long, default_value_t = 64)]
     pub tile_resolution: usize,
-
-    /// Set when the output file should be considered to be HR (8k x 8k resolution limit).
-    /// When set the tile resolution will be set to 64 unless specified otherwise.
-    #[clap(long, action, verbatim_doc_comment)]
-    pub hr: bool,
 
     /// Set when the sprites should not be cropped
     #[clap(long, action)]
@@ -119,7 +114,7 @@ struct SpritesheetArgs {
     pub scale_filter: ScaleFilter,
 
     /// Automatically split each frame into multiple subframes if the frames would not fit on a single sheet.
-    /// This is so that you can use large graphics for graphic types that do not allow to specify multiple files for a single layer.
+    /// This allows you to use large sprites for graphic types that do not allow to specify multiple files for a single layer.
     #[clap(long, action, verbatim_doc_comment)]
     pub single_sheet_split_mode: bool,
 }
