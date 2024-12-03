@@ -28,7 +28,7 @@ cast_sign_loss = "allow"
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
 env_logger = "0.10"
-image = { version = "0.25", features = ["png"] }
+image = { version = "0.25", features = ["png", "gif"] }
 log = "0.4"
 rayon = "1.10"
 strum = { version = "0.26", features = ["derive"] }
