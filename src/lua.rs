@@ -7,7 +7,6 @@ pub enum LuaValue {
     Int(i64),
     Bool(bool),
     Shift(f64, f64, usize),
-    Require(String),
     Array(Box<[LuaValue]>),
     Table(LuaOutput),
 }
@@ -108,15 +107,15 @@ impl From<(f64, f64, usize)> for LuaValue {
     }
 }
 
-impl From<Box<[Self]>> for LuaValue {
-    fn from(value: Box<[Self]>) -> Self {
-        Self::Array(value)
-    }
-}
-
 impl From<LuaOutput> for LuaValue {
     fn from(value: LuaOutput) -> Self {
         Self::Table(value)
+    }
+}
+
+impl From<Box<[LuaOutput]>> for LuaValue {
+    fn from(value: Box<[LuaOutput]>) -> Self {
+        Self::Array(value.iter().map(|x| Self::Table(x.clone())).collect())
     }
 }
 
@@ -128,10 +127,9 @@ impl std::fmt::Display for LuaValue {
             Self::Int(value) => write!(f, "{value}"),
             Self::Bool(value) => write!(f, "{value}"),
             Self::Shift(x, y, res) => write!(f, "{{x = {x} / {res}, y = {y} / {res}}}"),
-            Self::Require(value) => write!(f, "require(\"{value}\")"),
             Self::Array(arr) => {
                 write!(f, "{{")?;
-                for value in arr.iter() {
+                for value in arr {
                     write!(f, "{value},")?;
                 }
                 write!(f, "}}")
@@ -158,14 +156,6 @@ impl LuaOutput {
         self
     }
 
-    pub fn reexport(mut self, name: impl AsRef<str>) -> Self {
-        self.map.insert(
-            name.as_ref().to_owned(),
-            LuaValue::Require(name.as_ref().to_owned()),
-        );
-        self
-    }
-
     pub fn save(&self, path: impl AsRef<Path>) -> std::io::Result<()> {
         let mut file = std::fs::File::create(path)?;
 
@@ -177,6 +167,13 @@ impl LuaOutput {
             env!("CARGO_PKG_REPOSITORY")
         )?;
         writeln!(file, "return {{")?;
+        writeln!(
+            file,
+            "  [\"spritter\"] = {{ {}, {}, {} }},",
+            env!("CARGO_PKG_VERSION_MAJOR"),
+            env!("CARGO_PKG_VERSION_MINOR"),
+            env!("CARGO_PKG_VERSION_PATCH")
+        )?;
 
         for (key, data) in &self.map {
             writeln!(file, "  [\"{key}\"] = {data},")?;
