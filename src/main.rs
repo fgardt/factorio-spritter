@@ -210,7 +210,7 @@ impl SpritesheetArgs {
             return Ok(());
         }
 
-        let res = sources
+        let _ = sources
             .par_iter()
             .filter_map(|source| match generate_spritesheet(self, source) {
                 Ok(res_name) => {
@@ -227,48 +227,11 @@ impl SpritesheetArgs {
             })
             .collect::<Vec<_>>();
 
-        'r_group: {
-            if self.recursive && self.lua && !res.is_empty() {
-                #[allow(clippy::unwrap_used)]
-                let name = self.prefix.clone()
-                    + &self
-                        .source
-                        .canonicalize()?
-                        .components()
-                        .last()
-                        .unwrap()
-                        .as_os_str()
-                        .to_string_lossy();
-
-                if res.contains(&name) {
-                    warn!("skipping lua generation for recursive group: collision with source folder name");
-                    break 'r_group;
-                }
-
-                let mut out_path = self.output.join(name);
-                out_path.set_extension("lua");
-
-                let mut output = LuaOutput::new();
-
-                for name in res {
-                    output = output.reexport(format!("{}{name}", self.prefix));
-                }
-
-                output.save(out_path)?;
-            }
-        }
-
         Ok(())
     }
 
     fn tile_res(&self) -> usize {
-        let res = if self.hr && self.tile_resolution == 32 {
-            64.0
-        } else {
-            self.tile_resolution as f64
-        };
-
-        (res * self.scale).round() as usize
+        (self.tile_resolution as f64 * self.scale).round() as usize
     }
 }
 
@@ -524,27 +487,13 @@ fn generate_spritesheet(
                     .set("scale", 32.0 / args.tile_res() as f64)
                     .set("sprite_count", sprite_count)
                     .set("line_length", *cols)
-                    .set("lines_per_file", *rows)
-                    .set("file_count", 1)
-                    .set(
-                        "name",
-                        out.file_stem()
-                            .unwrap_or_default()
-                            .to_string_lossy()
-                            .to_string(),
-                    ),
+                    .set("lines_per_file", *rows),
             );
         }
 
         if args.lua {
             LuaOutput::new()
-                .set(
-                    "layers",
-                    lua_layers
-                        .iter()
-                        .map(|out| out.clone().into())
-                        .collect::<Box<_>>(),
-                )
+                .set("single_sheet_split_layers", lua_layers.into_boxed_slice())
                 .save(output_name(
                     source,
                     &args.output,
@@ -692,13 +641,6 @@ fn generate_spritesheet(
             .set("line_length", cols_per_sheet)
             .set("lines_per_file", rows_per_sheet)
             .set("file_count", sheet_count)
-            .set(
-                "name",
-                out.file_stem()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string(),
-            )
             .save(out)?;
     }
 
