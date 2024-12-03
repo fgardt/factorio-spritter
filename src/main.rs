@@ -46,6 +46,15 @@ enum GenerationCommand {
         #[clap(flatten)]
         args: IconArgs,
     },
+
+    /// Generate a gif from a folder of images
+    ///
+    /// Note: Don't use gifs for in-game graphics. This is meant for documentation / preview purposes only.
+    Gif {
+        // args
+        #[clap(flatten)]
+        args: GifArgs,
+    },
 }
 
 impl std::ops::Deref for GenerationCommand {
@@ -55,6 +64,7 @@ impl std::ops::Deref for GenerationCommand {
         match self {
             Self::Spritesheet { args } => &args.shared,
             Self::Icon { args } => &args.shared,
+            Self::Gif { args } => &args.shared,
         }
     }
 }
@@ -246,6 +256,32 @@ impl std::ops::Deref for IconArgs {
 }
 
 #[derive(Args, Debug)]
+struct GifArgs {
+    // shared args
+    #[clap(flatten)]
+    shared: SharedArgs,
+
+    /// Animation speed to use for the gif
+    /// This is identical to in-game speed. 1.0 means 60 frames per second.
+    /// Note: GIFs frame delay is in steps of 10ms, so the actual speed might be slightly different.
+    #[clap(short = 's', long, default_value = "1.0", verbatim_doc_comment)]
+    pub animation_speed: f64,
+
+    /// Alpha threshold to consider a pixel as transparent [0-255].
+    /// Since GIFS only support 1-bit transparency, this is used to determine which pixels are transparent.
+    #[clap(short, long, default_value = "0", verbatim_doc_comment)]
+    pub alpha_threshold: u8,
+}
+
+impl std::ops::Deref for GifArgs {
+    type Target = SharedArgs;
+
+    fn deref(&self) -> &Self::Target {
+        &self.shared
+    }
+}
+
+#[derive(Args, Debug)]
 struct SharedArgs {
     /// Folder containing the individual sprites
     pub source: PathBuf,
@@ -270,6 +306,7 @@ fn main() -> ExitCode {
     let res = match args.command {
         GenerationCommand::Spritesheet { args } => args.execute(),
         GenerationCommand::Icon { args } => generate_mipmap_icon(&args),
+        GenerationCommand::Gif { args } => generate_gif(&args),
     };
 
     if let Err(err) = res {
@@ -730,63 +767,55 @@ fn generate_subframe_sheets(
         .collect()
 }
 
-/*
+fn generate_gif(args: &GifArgs) -> Result<(), CommandError> {
+    use image::{codecs::gif, Delay, Frame};
 
-simple modes
-- mipmap icon
-  - get all levels from folder and combine as mipmap icon
+    if args.lua {
+        warn!("lua output is not supported for gifs");
+    }
 
-- spritesheet
-  - crop all images equally if possible (trim transparent edges)
+    if args.animation_speed <= 0.0 {
+        warn!("animation speed must be greater than 0");
+        return Ok(());
+    }
 
-different generation modes (important for lua generation)
+    let mut images = image_util::load_from_path(&args.source)?;
 
-- https://wiki.factorio.com/Types/SpriteFlags
+    if images.is_empty() {
+        warn!("no source images found");
+        return Ok(());
+    }
 
-- mipmap icon
-  - https://wiki.factorio.com/Types/IconSpecification
-  - either get all levels and check sizes or fallback to let factorio generate them
+    for img in &mut images {
+        for pxl in img.pixels_mut() {
+            if pxl[3] <= 10 {
+                pxl[0] = 0;
+                pxl[1] = 0;
+                pxl[2] = 0;
+                pxl[3] = 0;
+            }
+        }
+    }
 
-- sprite
-  - https://wiki.factorio.com/Prototype/Sprite
-  - can have multiple layers
-  - can have HR version
+    let mut file = fs::File::create(output_name(
+        &args.source,
+        &args.output,
+        None,
+        &args.prefix,
+        ".gif",
+    )?)?;
 
-- animation
-    - https://wiki.factorio.com/Prototype/Animation
-    - can have multiple layers
-    - can have HR version
-    - check if all layers have same frame count (custom sequences / repeats not supported)
+    let mut encoder = gif::GifEncoder::new(&mut file);
+    encoder.set_repeat(gif::Repeat::Infinite)?;
 
-- auto
-  - get output name from source folder name
-  - generate all modes (detect applicable modes from source file/folder names)
+    encoder.try_encode_frames(images.iter().map(|img| {
+        Ok(Frame::from_parts(
+            img.clone(),
+            0,
+            0,
+            Delay::from_numer_denom_ms(100_000, (6000.0 * args.animation_speed).round() as u32),
+        ))
+    }))?;
 
-
-
-GRAPHIC TYPES
-
-- Animations
-  - Animation
-  - RotatedAnimation
-  - Animation4Way
-  - RotatedAnimation4Way
-  - AnimationVariations
-  - RotatedAnimationVariations
-- Sprites
-  - Sprite
-  - RotatedSprite
-  - Sprite4Way
-  - Sprite8Way
-  - SpriteNWaySheet
-  - SpriteVariations
-  - (WaterReflectionDefinition)
-  - (CircuitConnectorSprites)
-- Icons
-  - IconSpecification
-  - IconData
-- Tiles
-  - TileTransitionSprite
-  - (TileTransitions)
-
-*/
+    Ok(())
+}
