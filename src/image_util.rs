@@ -80,10 +80,10 @@ pub fn crop_images(images: &mut Vec<RgbaImage>, limit: u8) -> ImgUtilResult<(f64
     #[allow(clippy::unwrap_used)]
     let (raw_width, raw_height) = images.first().unwrap().dimensions();
 
-    let mut min_x = std::u32::MAX;
-    let mut min_y = std::u32::MAX;
-    let mut max_x = std::u32::MIN;
-    let mut max_y = std::u32::MIN;
+    let mut min_x = u32::MAX;
+    let mut min_y = u32::MAX;
+    let mut max_x = u32::MIN;
+    let mut max_y = u32::MIN;
 
     for image in images.iter() {
         // ensure image has same size
@@ -131,11 +131,7 @@ pub fn crop_images(images: &mut Vec<RgbaImage>, limit: u8) -> ImgUtilResult<(f64
     }
 
     // are all images are empty? (or some other edge case?)
-    if min_x == std::u32::MAX
-        || min_y == std::u32::MAX
-        || max_x == std::u32::MIN
-        || max_y == std::u32::MIN
-    {
+    if min_x == u32::MAX || min_y == u32::MAX || max_x == u32::MIN || max_y == u32::MIN {
         return Err(ImgUtilError::AllImagesEmpty);
     }
 
