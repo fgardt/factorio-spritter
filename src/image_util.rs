@@ -1,4 +1,4 @@
-use std::{fs, ops::Deref, path::Path};
+use std::{fs, io::Write, ops::Deref, path::Path};
 
 use image::{
     codecs::png, EncodableLayout, ImageBuffer, ImageEncoder, Pixel, PixelWithColorType, RgbaImage,
@@ -11,6 +11,9 @@ pub enum ImgUtilError {
 
     #[error("image error: {0}")]
     ImageError(#[from] image::ImageError),
+
+    #[error("oxipng error: {0}")]
+    OxipngError(#[from] oxipng::PngError),
 
     #[error("no images to crop")]
     NoImagesToCrop,
@@ -184,11 +187,12 @@ where
 {
     fn save_optimized_png(&self, path: impl AsRef<Path>) -> ImgUtilResult<()> {
         let mut file = fs::File::create(path)?;
+        let mut data = Vec::new();
 
         let (width, height) = self.dimensions();
         png::PngEncoder::new_with_quality(
-            &mut file,
-            png::CompressionType::Best,
+            &mut data,
+            png::CompressionType::Fast,
             png::FilterType::default(),
         )
         .write_image(
@@ -197,6 +201,14 @@ where
             height,
             <P as PixelWithColorType>::COLOR_TYPE,
         )?;
+
+        let mut opts = oxipng::Options::max_compression();
+        opts.optimize_alpha = true;
+        opts.scale_16 = true;
+        opts.force = true;
+
+        let res = oxipng::optimize_from_memory(&data, &opts)?;
+        file.write_all(&res)?;
 
         Ok(())
     }

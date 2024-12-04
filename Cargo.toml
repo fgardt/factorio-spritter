@@ -34,3 +34,4 @@ rayon = "1.10"
 strum = { version = "0.26", features = ["derive"] }
 thiserror = "2"
 natord = "1.0"
+oxipng = { version = "9", default-features = false, features = ["parallel"] }
