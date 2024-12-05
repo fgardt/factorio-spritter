@@ -17,6 +17,8 @@ Usage: spritter <COMMAND>
 Commands:
   spritesheet  Generate sprite sheets from a folder of images
   icon         Generate a mipmap icon from a folder of images
+  gif          Generate a gif from a folder of images
+  optimize     Optimize an image or a folder of images
   help         Print this message or the help of the given subcommand(s)
 
 Options:
@@ -41,13 +43,12 @@ Options:
           Enable lua output generation
   -p, --prefix <PREFIX>
           Prefix to add to the output file name [default: ]
+      --lossy
+          Allow lossy compression for the output images. This is using pngquant / imagequant internally
   -r, --recursive
           Recursive search for images. Each folder will be a separate sprite sheet
   -t, --tile-resolution <TILE_RESOLUTION>
-          Resolution of the input sprites in pixels / tile [default: 32]
-      --hr
-          Set when the output file should be considered to be HR (8k x 8k resolution limit).
-          When set the tile resolution will be set to 64 unless specified otherwise.
+          Resolution of the input sprites in pixels / tile [default: 64]
       --no-crop
           Set when the sprites should not be cropped
   -a, --crop-alpha <CROP_ALPHA>
@@ -58,25 +59,97 @@ Options:
           Values < 1.0 will shrink the sprites. Values > 1.0 will enlarge them. [default: 1]
       --scale-filter <SCALE_FILTER>
           The scaling filter to use when scaling sprites [default: catmull-rom] [possible values: nearest, triangle, catmull-rom, gaussian, lanczos3]
+      --single-sheet-split-mode
+          Automatically split each frame into multiple subframes if the frames would not fit on a single sheet.
+          This allows you to use large sprites for graphic types that do not allow to specify multiple files for a single layer.
 ```
 
 ### Icon
 
 ```
 ~$ spritter help icon
-Generate a mipmap icon from a folder of images
+Generate a mipmap icon from a folder of images.
 
-The individual images are used as the respective mip levels and combined into a single image
+The individual images are used as the respective mip levels and combined into a single image.
 
 Usage: spritter icon [OPTIONS] <SOURCE> <OUTPUT>
 
 Arguments:
-  <SOURCE> Folder containing the individual sprites
-  <OUTPUT> Output folder
+  <SOURCE>
+          Folder containing the individual sprites
+
+  <OUTPUT>
+          Output folder
 
 Options:
   -l, --lua
           Enable lua output generation
+
   -p, --prefix <PREFIX>
           Prefix to add to the output file name
+          
+          [default: ]
+
+      --lossy
+          Allow lossy compression for the output images. This is using pngquant / imagequant internally
+```
+
+### Gif
+```
+~$ spritter help gif
+Generate a gif from a folder of images.
+
+Note: Don't use gifs for in-game graphics. This is meant for documentation / preview purposes only.
+
+Usage: spritter gif [OPTIONS] <SOURCE> <OUTPUT>
+
+Arguments:
+  <SOURCE>
+          Folder containing the individual sprites
+
+  <OUTPUT>
+          Output folder
+
+Options:
+  -p, --prefix <PREFIX>
+          Prefix to add to the output file name
+          
+          [default: ]
+
+      --lossy
+          Allow lossy compression for the output images. This is using pngquant / imagequant internally
+
+  -s, --animation-speed <ANIMATION_SPEED>
+          Animation speed to use for the gif.
+          This is identical to in-game speed. 1.0 means 60 frames per second.
+          Note: GIFs frame delay is in steps of 10ms, so the actual speed might be slightly different.
+          
+          [default: 1.0]
+
+  -a, --alpha-threshold <ALPHA_THRESHOLD>
+          Alpha threshold to consider a pixel as transparent [0-255].
+          Since GIFS only support 1-bit transparency, this is used to determine which pixels are transparent.
+          
+          [default: 0]
+```
+
+### Optimize
+```
+Optimize an image or a folder of images.
+
+This is using oxipng (and optionally pngquant / imagequant when lossy is enabled).
+Note: the original images will be replaced with the optimized versions.
+
+Usage: spritter optimize [OPTIONS] <TARGET>
+
+Arguments:
+  <TARGET>
+
+Options:
+  -g, --group
+          Treat images as a group and optimize them together instead of individually.
+          This is only has an effect with lossy compression.
+
+      --lossy
+          Allow lossy compression
 ```
