@@ -31,23 +31,23 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum GenerationCommand {
-    /// Generate sprite sheets from a folder of images
+    /// Generate sprite sheets from a folder of images.
     Spritesheet {
         // args
         #[clap(flatten)]
         args: SpritesheetArgs,
     },
 
-    /// Generate a mipmap icon from a folder of images
+    /// Generate a mipmap icon from a folder of images.
     ///
-    /// The individual images are used as the respective mip levels and combined into a single image
+    /// The individual images are used as the respective mip levels and combined into a single image.
     Icon {
         // args
         #[clap(flatten)]
         args: IconArgs,
     },
 
-    /// Generate a gif from a folder of images
+    /// Generate a gif from a folder of images.
     ///
     /// Note: Don't use gifs for in-game graphics. This is meant for documentation / preview purposes only.
     Gif {
@@ -55,18 +55,16 @@ enum GenerationCommand {
         #[clap(flatten)]
         args: GifArgs,
     },
-}
 
-impl std::ops::Deref for GenerationCommand {
-    type Target = SharedArgs;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            Self::Spritesheet { args } => &args.shared,
-            Self::Icon { args } => &args.shared,
-            Self::Gif { args } => &args.shared,
-        }
-    }
+    /// Optimize an image or a folder of images.
+    ///
+    /// This is using oxipng (and optionally pngquant / imagequant when lossy is enabled).
+    /// Note: the original images will be replaced with the optimized versions.
+    Optimize {
+        // args
+        #[clap(flatten)]
+        args: OptimizeArgs,
+    },
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -282,6 +280,20 @@ impl std::ops::Deref for GifArgs {
 }
 
 #[derive(Args, Debug)]
+struct OptimizeArgs {
+    pub target: PathBuf,
+
+    /// Treat images as a group and optimize them together instead of individually.
+    /// This is only has an effect with lossy compression.
+    #[clap(short, long, action, verbatim_doc_comment)]
+    pub group: bool,
+
+    /// Allow lossy compression.
+    #[clap(long, action)]
+    pub lossy: bool,
+}
+
+#[derive(Args, Debug)]
 struct SharedArgs {
     /// Folder containing the individual sprites.
     pub source: PathBuf,
@@ -305,13 +317,14 @@ struct SharedArgs {
 
 fn main() -> ExitCode {
     let args = Cli::parse();
-    logger::init("info");
+    logger::init("info,oxipng=warn");
     info!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
     let res = match args.command {
         GenerationCommand::Spritesheet { args } => args.execute(),
         GenerationCommand::Icon { args } => generate_mipmap_icon(&args),
         GenerationCommand::Gif { args } => generate_gif(&args),
+        GenerationCommand::Optimize { args } => optimize(&args),
     };
 
     if let Err(err) = res {
@@ -526,7 +539,7 @@ fn generate_spritesheet(
             sheets.push((sheet.clone(), out));
         }
 
-        save_sheets(&sheets, args.lossy)?;
+        save_sheets(&sheets, args.lossy, true)?;
 
         if args.lua {
             LuaOutput::new()
@@ -651,7 +664,7 @@ fn generate_spritesheet(
     }
 
     // save sheets
-    save_sheets(&sheets, args.lossy)?;
+    save_sheets(&sheets, args.lossy, true)?;
 
     if args.no_crop {
         info!(
@@ -821,4 +834,61 @@ fn generate_gif(args: &GifArgs) -> Result<(), CommandError> {
     }))?;
 
     Ok(())
+}
+
+fn optimize(args: &OptimizeArgs) -> Result<(), CommandError> {
+    if args.group && !args.lossy {
+        warn!("group optimization only has an effect with lossy compression");
+    }
+
+    let images = image_util::load_from_path_with_path(&args.target)?;
+
+    if images.is_empty() {
+        warn!("no source images found");
+        return Ok(());
+    }
+
+    let mut sizes = Vec::with_capacity(images.len());
+    for (_, path) in &images {
+        sizes.push(file_size(path)?);
+    }
+
+    let res = save_sheets(&images, args.lossy, args.group)?;
+
+    let mut total_saved = 0;
+    for ((old, new), (_, path)) in sizes.into_iter().zip(res).zip(images.into_iter()) {
+        let reduced_by = old - new;
+        let percent = ((new as f64 / old as f64) - 1.0) * 100.0;
+
+        info!(
+            "{}: {:.2}% smaller, saved {}",
+            path.display(),
+            percent,
+            human_readable_bytes(reduced_by)
+        );
+
+        total_saved += reduced_by;
+    }
+
+    info!("total reduction: {}", human_readable_bytes(total_saved));
+
+    Ok(())
+}
+
+fn file_size(path: impl AsRef<Path>) -> std::io::Result<u64> {
+    Ok(fs::metadata(path)?.len())
+}
+
+fn human_readable_bytes(bytes: u64) -> String {
+    static UNITS: [&str; 6] = ["B", "kB", "MB", "GB", "TB", "PB"]; // wtf are you doing if this saves you petabytes -.-
+
+    let mut size = bytes as f64;
+    let mut unit = 0;
+
+    while size >= 1000.0 && unit < UNITS.len() - 1 {
+        size /= 1000.0;
+        unit += 1;
+    }
+
+    format!("{:.2}{}", size, UNITS[unit])
 }
