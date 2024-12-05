@@ -302,9 +302,10 @@ pub fn save_sheets(
     lossy: bool,
     group: bool,
 ) -> ImgUtilResult<Box<[u64]>> {
-    let mut sizes = Vec::with_capacity(sheets.len());
+    let sheets_count = sheets.len();
+    let mut sizes = Vec::with_capacity(sheets_count);
     // more than one sheet, lossy compression and grouping -> generate histogram and quantize ahead of time
-    if sheets.len() > 1 && lossy && group {
+    if sheets_count > 1 && lossy && group {
         info!("analyzing multiple images for quantization (grouped lossy compression)");
 
         let quant = quantization_attributes()?;
@@ -324,7 +325,7 @@ pub fn save_sheets(
 
         info!("analyzing done, saving images");
 
-        for (sheet, path) in sheets {
+        for (idx, (sheet, path)) in sheets.iter().enumerate() {
             let (width, height) = sheet.dimensions();
             let w_usize = width as usize;
             let h_usize = height as usize;
@@ -341,6 +342,14 @@ pub fn save_sheets(
                 height,
                 path,
             )?);
+
+            if sheets_count > 10 && (idx + 1) % 10 == 0 {
+                info!("saved {}/{}", idx + 1, sheets_count);
+            }
+        }
+
+        if sheets_count > 10 && sheets_count % 10 != 0 {
+            info!("saved {}/{}", sheets_count, sheets_count);
         }
 
         return Ok(sizes.into_boxed_slice());
@@ -348,8 +357,16 @@ pub fn save_sheets(
 
     // regular optimized saving
     info!("saving image(s)");
-    for (sheet, path) in sheets {
+    for (idx, (sheet, path)) in sheets.iter().enumerate() {
         sizes.push(sheet.save_optimized_png(path, lossy)?);
+
+        if sheets_count > 10 && (idx + 1) % 10 == 0 {
+            info!("saved {}/{}", idx + 1, sheets_count);
+        }
+    }
+
+    if sheets_count > 10 && sheets_count % 10 != 0 {
+        info!("saved {}/{}", sheets_count, sheets_count);
     }
 
     Ok(sizes.into_boxed_slice())
