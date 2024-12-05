@@ -1,8 +1,16 @@
-use std::{fs, io::Write, ops::Deref, path::Path};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    fs,
+    io::Write,
+    ops::Deref,
+    path::{Path, PathBuf},
+};
 
 use image::{
-    codecs::png, EncodableLayout, ImageBuffer, ImageEncoder, Pixel, PixelWithColorType, RgbaImage,
+    codecs::png, EncodableLayout, ImageBuffer, ImageEncoder, PixelWithColorType, Rgba, RgbaImage,
 };
+use imagequant::{Attributes, Histogram, HistogramEntry};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ImgUtilError {
@@ -11,6 +19,9 @@ pub enum ImgUtilError {
 
     #[error("image error: {0}")]
     ImageError(#[from] image::ImageError),
+
+    #[error("imagequant error: {0}")]
+    ImageQuantError(#[from] imagequant::Error),
 
     #[error("oxipng error: {0}")]
     OxipngError(#[from] oxipng::PngError),
@@ -176,40 +187,153 @@ pub fn crop_images(images: &mut Vec<RgbaImage>, limit: u8) -> ImgUtilResult<(f64
 }
 
 pub trait ImageBufferExt<P, C> {
-    fn save_optimized_png(&self, path: impl AsRef<Path>) -> ImgUtilResult<()>;
+    fn save_optimized_png(&self, path: impl AsRef<Path>, lossy: bool) -> ImgUtilResult<()>;
+
+    fn get_histogram(&self) -> Box<[HistogramEntry]>;
+    fn to_quant_img(&self) -> Box<[imagequant::RGBA]>;
 }
 
-impl<P, C> ImageBufferExt<P, C> for ImageBuffer<P, C>
+impl<C> ImageBufferExt<Rgba<u8>, C> for ImageBuffer<Rgba<u8>, C>
 where
-    P: Pixel + PixelWithColorType,
-    [P::Subpixel]: EncodableLayout,
-    C: Deref<Target = [P::Subpixel]>,
+    C: Deref<Target = [u8]>,
 {
-    fn save_optimized_png(&self, path: impl AsRef<Path>) -> ImgUtilResult<()> {
-        let mut file = fs::File::create(path)?;
-        let mut data = Vec::new();
-
+    fn save_optimized_png(&self, path: impl AsRef<Path>, lossy: bool) -> ImgUtilResult<()> {
         let (width, height) = self.dimensions();
-        png::PngEncoder::new_with_quality(
-            &mut data,
-            png::CompressionType::Fast,
-            png::FilterType::default(),
-        )
-        .write_image(
-            self.as_bytes(),
-            width,
-            height,
-            <P as PixelWithColorType>::COLOR_TYPE,
-        )?;
 
-        let mut opts = oxipng::Options::max_compression();
-        opts.optimize_alpha = true;
-        opts.scale_16 = true;
-        opts.force = true;
+        let buf = if lossy {
+            let quant = quantization_attributes()?;
+            let mut img =
+                quant.new_image(self.to_quant_img(), width as usize, height as usize, 0.0)?;
 
-        let res = oxipng::optimize_from_memory(&data, &opts)?;
-        file.write_all(&res)?;
+            let mut qres = quant.quantize(&mut img)?;
+            qres.set_dithering_level(1.0)?;
 
-        Ok(())
+            let (palette, pxls) = qres.remapped(&mut img)?;
+            let palette = palette
+                .iter()
+                .map(|color| [color.r, color.g, color.b, color.a])
+                .collect::<Box<_>>();
+
+            (0..width * height)
+                .flat_map(|i| palette[pxls[i as usize] as usize])
+                .collect()
+        } else {
+            Cow::Borrowed(self.as_bytes())
+        };
+
+        optimize_png(&buf, width, height, path)
     }
+
+    fn get_histogram(&self) -> Box<[HistogramEntry]> {
+        let mut res = HashMap::new();
+
+        for pxl in self.pixels() {
+            let key = (pxl[0], pxl[1], pxl[2], pxl[3]);
+            let entry = res.entry(key).or_insert(0);
+            *entry += 1;
+        }
+
+        res.iter()
+            .map(|(&(r, g, b, a), v)| HistogramEntry {
+                color: imagequant::RGBA { r, g, b, a },
+                count: *v,
+            })
+            .collect()
+    }
+
+    fn to_quant_img(&self) -> Box<[imagequant::RGBA]> {
+        self.pixels()
+            .map(|pxl| imagequant::RGBA {
+                r: pxl[0],
+                g: pxl[1],
+                b: pxl[2],
+                a: pxl[3],
+            })
+            .collect::<Box<_>>()
+    }
+}
+
+fn quantization_attributes() -> ImgUtilResult<Attributes> {
+    let mut attr = Attributes::new();
+    attr.set_speed(1)?;
+
+    Ok(attr)
+}
+
+/// Encode image as PNG and optimize with [oxipng] before writing to disk.
+fn optimize_png(buf: &[u8], width: u32, height: u32, path: impl AsRef<Path>) -> ImgUtilResult<()> {
+    let mut data = Vec::new();
+    png::PngEncoder::new_with_quality(
+        &mut data,
+        png::CompressionType::Fast,
+        png::FilterType::default(),
+    )
+    .write_image(
+        buf,
+        width,
+        height,
+        <Rgba<u8> as PixelWithColorType>::COLOR_TYPE,
+    )?;
+
+    let mut opts = oxipng::Options::max_compression();
+    opts.optimize_alpha = true;
+    opts.scale_16 = true;
+    opts.force = true;
+
+    let res = oxipng::optimize_from_memory(&data, &opts)?;
+    fs::File::create(path)?.write_all(&res)?;
+
+    Ok(())
+}
+
+/// Save sheets as PNG files.
+///
+/// This will also optimize the images using [oxipng].
+/// When `lossy` is true the images will also be compressed using [imagequant]. In case of multiple sheets it will generate a histogram and quantize ahead of time.
+pub fn save_sheets(sheets: &[(RgbaImage, PathBuf)], lossy: bool) -> ImgUtilResult<()> {
+    // more than one sheet and lossy compression -> generate histogram and quantize ahead of time
+    if sheets.len() > 1 && lossy {
+        let quant = quantization_attributes()?;
+        let mut histo = Histogram::new(&quant);
+
+        for (sheet, _) in sheets {
+            histo.add_colors(&sheet.get_histogram(), 0.0)?;
+        }
+
+        let mut qres = histo.quantize(&quant)?;
+        qres.set_dithering_level(1.0)?;
+        let palette = qres
+            .palette()
+            .iter()
+            .map(|color| [color.r, color.g, color.b, color.a])
+            .collect::<Box<_>>();
+
+        for (sheet, path) in sheets {
+            let (width, height) = sheet.dimensions();
+            let w_usize = width as usize;
+            let h_usize = height as usize;
+            let mut img = quant.new_image(sheet.to_quant_img(), w_usize, h_usize, 0.0)?;
+
+            let mut pxls = Vec::with_capacity(w_usize * h_usize);
+            qres.remap_into_vec(&mut img, &mut pxls)?;
+
+            optimize_png(
+                &(0..width * height)
+                    .flat_map(|i| palette[pxls[i as usize] as usize])
+                    .collect::<Box<_>>(),
+                width,
+                height,
+                path,
+            )?;
+        }
+
+        return Ok(());
+    }
+
+    // regular optimized saving
+    for (sheet, path) in sheets {
+        sheet.save_optimized_png(path, lossy)?;
+    }
+
+    Ok(())
 }

@@ -19,7 +19,7 @@ mod image_util;
 mod logger;
 mod lua;
 
-use image_util::ImageBufferExt;
+use image_util::{save_sheets, ImageBufferExt};
 use lua::LuaOutput;
 
 #[derive(Parser, Debug)]
@@ -261,7 +261,7 @@ struct GifArgs {
     #[clap(flatten)]
     shared: SharedArgs,
 
-    /// Animation speed to use for the gif
+    /// Animation speed to use for the gif.
     /// This is identical to in-game speed. 1.0 means 60 frames per second.
     /// Note: GIFs frame delay is in steps of 10ms, so the actual speed might be slightly different.
     #[clap(short = 's', long, default_value = "1.0", verbatim_doc_comment)]
@@ -283,19 +283,24 @@ impl std::ops::Deref for GifArgs {
 
 #[derive(Args, Debug)]
 struct SharedArgs {
-    /// Folder containing the individual sprites
+    /// Folder containing the individual sprites.
     pub source: PathBuf,
 
-    /// Output folder
+    /// Output folder.
     pub output: PathBuf,
 
-    /// Enable lua output generation
+    /// Enable lua output generation.
     #[clap(short, long, action)]
     lua: bool,
 
-    /// Prefix to add to the output file name
+    /// Prefix to add to the output file name.
     #[clap(short, long, default_value_t = String::new())]
     prefix: String,
+
+    /// Allow lossy compression for the output images.
+    /// This is using pngquant / imagequant internally.
+    #[clap(long, action)]
+    lossy: bool,
 }
 
 fn main() -> ExitCode {
@@ -415,13 +420,10 @@ fn generate_mipmap_icon(args: &IconArgs) -> Result<(), CommandError> {
 
     image::imageops::crop_imm(&res, 0, 0, next_x, res.height())
         .to_image()
-        .save_optimized_png(output_name(
-            &args.source,
-            &args.output,
-            None,
-            &args.prefix,
-            "png",
-        )?)?;
+        .save_optimized_png(
+            output_name(&args.source, &args.output, None, &args.prefix, "png")?,
+            args.lossy,
+        )?;
 
     if args.lua {
         LuaOutput::new()
@@ -504,12 +506,11 @@ fn generate_spritesheet(
         let layers =
             generate_subframe_sheets(args, &images, sprite_width, sprite_height, shift_x, shift_y);
         let mut lua_layers = Vec::with_capacity(layers.len());
+        let mut sheets = Vec::with_capacity(layers.len());
 
         for (idx, layer) in layers.iter().enumerate() {
             let (sheet, (width, height), (shift_x, shift_y), (cols, rows)) = layer;
-
             let out = output_name(source, &args.output, Some(idx), &args.prefix, "png")?;
-            sheet.save_optimized_png(&out)?;
 
             lua_layers.push(
                 LuaOutput::new()
@@ -521,7 +522,11 @@ fn generate_spritesheet(
                     .set("line_length", *cols)
                     .set("lines_per_file", *rows),
             );
+
+            sheets.push((sheet.clone(), out));
         }
+
+        save_sheets(&sheets, args.lossy)?;
 
         if args.lua {
             LuaOutput::new()
@@ -646,9 +651,7 @@ fn generate_spritesheet(
     }
 
     // save sheets
-    for (sheet, path) in sheets {
-        sheet.save_optimized_png(path)?;
-    }
+    save_sheets(&sheets, args.lossy)?;
 
     if args.no_crop {
         info!(
