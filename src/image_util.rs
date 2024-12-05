@@ -38,7 +38,7 @@ pub enum ImgUtilError {
 
 type ImgUtilResult<T> = std::result::Result<T, ImgUtilError>;
 
-pub fn load_from_path(path: &Path) -> ImgUtilResult<Vec<RgbaImage>> {
+pub fn load_from_path_with_path(path: &Path) -> ImgUtilResult<Vec<(RgbaImage, PathBuf)>> {
     if !path.exists() {
         return Err(ImgUtilError::IOError(std::io::Error::new(
             std::io::ErrorKind::NotFound,
@@ -47,7 +47,7 @@ pub fn load_from_path(path: &Path) -> ImgUtilResult<Vec<RgbaImage>> {
     }
 
     if path.is_file() && path.extension().unwrap_or_default() == "png" {
-        return Ok(vec![load_image_from_file(path)?]);
+        return Ok(vec![(load_image_from_file(path)?, path.to_path_buf())]);
     }
 
     let mut images = Vec::new();
@@ -75,10 +75,15 @@ pub fn load_from_path(path: &Path) -> ImgUtilResult<Vec<RgbaImage>> {
             continue;
         }
 
-        images.push(load_image_from_file(&path)?);
+        images.push((load_image_from_file(&path)?, path));
     }
 
     Ok(images)
+}
+
+pub fn load_from_path(path: &Path) -> ImgUtilResult<Vec<RgbaImage>> {
+    let res = load_from_path_with_path(path)?;
+    Ok(res.into_iter().map(|(img, _)| img).collect())
 }
 
 fn load_image_from_file(path: &Path) -> ImgUtilResult<RgbaImage> {
@@ -187,7 +192,7 @@ pub fn crop_images(images: &mut Vec<RgbaImage>, limit: u8) -> ImgUtilResult<(f64
 }
 
 pub trait ImageBufferExt<P, C> {
-    fn save_optimized_png(&self, path: impl AsRef<Path>, lossy: bool) -> ImgUtilResult<()>;
+    fn save_optimized_png(&self, path: impl AsRef<Path>, lossy: bool) -> ImgUtilResult<u64>;
 
     fn get_histogram(&self) -> Box<[HistogramEntry]>;
     fn to_quant_img(&self) -> Box<[imagequant::RGBA]>;
@@ -197,7 +202,7 @@ impl<C> ImageBufferExt<Rgba<u8>, C> for ImageBuffer<Rgba<u8>, C>
 where
     C: Deref<Target = [u8]>,
 {
-    fn save_optimized_png(&self, path: impl AsRef<Path>, lossy: bool) -> ImgUtilResult<()> {
+    fn save_optimized_png(&self, path: impl AsRef<Path>, lossy: bool) -> ImgUtilResult<u64> {
         let (width, height) = self.dimensions();
 
         let buf = if lossy {
@@ -261,7 +266,7 @@ fn quantization_attributes() -> ImgUtilResult<Attributes> {
 }
 
 /// Encode image as PNG and optimize with [oxipng] before writing to disk.
-fn optimize_png(buf: &[u8], width: u32, height: u32, path: impl AsRef<Path>) -> ImgUtilResult<()> {
+fn optimize_png(buf: &[u8], width: u32, height: u32, path: impl AsRef<Path>) -> ImgUtilResult<u64> {
     let mut data = Vec::new();
     png::PngEncoder::new_with_quality(
         &mut data,
@@ -280,19 +285,28 @@ fn optimize_png(buf: &[u8], width: u32, height: u32, path: impl AsRef<Path>) -> 
     opts.scale_16 = true;
     opts.force = true;
 
+    debug!("optimizing {}", path.as_ref().display());
     let res = oxipng::optimize_from_memory(&data, &opts)?;
     fs::File::create(path)?.write_all(&res)?;
 
-    Ok(())
+    Ok(res.len() as u64)
 }
 
 /// Save sheets as PNG files.
 ///
 /// This will also optimize the images using [oxipng].
-/// When `lossy` is true the images will also be compressed using [imagequant]. In case of multiple sheets it will generate a histogram and quantize ahead of time.
-pub fn save_sheets(sheets: &[(RgbaImage, PathBuf)], lossy: bool) -> ImgUtilResult<()> {
-    // more than one sheet and lossy compression -> generate histogram and quantize ahead of time
-    if sheets.len() > 1 && lossy {
+/// When `lossy` is true the images will also be compressed using [imagequant].
+/// When `group` is true and there are multiple sheets it will generate a histogram and quantize ahead of time.
+pub fn save_sheets(
+    sheets: &[(RgbaImage, PathBuf)],
+    lossy: bool,
+    group: bool,
+) -> ImgUtilResult<Box<[u64]>> {
+    let mut sizes = Vec::with_capacity(sheets.len());
+    // more than one sheet, lossy compression and grouping -> generate histogram and quantize ahead of time
+    if sheets.len() > 1 && lossy && group {
+        info!("analyzing multiple images for quantization (grouped lossy compression)");
+
         let quant = quantization_attributes()?;
         let mut histo = Histogram::new(&quant);
 
@@ -308,6 +322,8 @@ pub fn save_sheets(sheets: &[(RgbaImage, PathBuf)], lossy: bool) -> ImgUtilResul
             .map(|color| [color.r, color.g, color.b, color.a])
             .collect::<Box<_>>();
 
+        info!("analyzing done, saving images");
+
         for (sheet, path) in sheets {
             let (width, height) = sheet.dimensions();
             let w_usize = width as usize;
@@ -317,23 +333,24 @@ pub fn save_sheets(sheets: &[(RgbaImage, PathBuf)], lossy: bool) -> ImgUtilResul
             let mut pxls = Vec::with_capacity(w_usize * h_usize);
             qres.remap_into_vec(&mut img, &mut pxls)?;
 
-            optimize_png(
+            sizes.push(optimize_png(
                 &(0..width * height)
                     .flat_map(|i| palette[pxls[i as usize] as usize])
                     .collect::<Box<_>>(),
                 width,
                 height,
                 path,
-            )?;
+            )?);
         }
 
-        return Ok(());
+        return Ok(sizes.into_boxed_slice());
     }
 
     // regular optimized saving
+    info!("saving image(s)");
     for (sheet, path) in sheets {
-        sheet.save_optimized_png(path, lossy)?;
+        sizes.push(sheet.save_optimized_png(path, lossy)?);
     }
 
-    Ok(())
+    Ok(sizes.into_boxed_slice())
 }
