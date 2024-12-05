@@ -283,6 +283,10 @@ impl std::ops::Deref for GifArgs {
 struct OptimizeArgs {
     pub target: PathBuf,
 
+    /// Recursively search for images in the target folder.
+    #[clap(short, long, action)]
+    pub recursive: bool,
+
     /// Treat images as a group and optimize them together instead of individually.
     /// This is only has an effect with lossy compression.
     #[clap(short, long, action, verbatim_doc_comment)]
@@ -841,7 +845,21 @@ fn optimize(args: &OptimizeArgs) -> Result<(), CommandError> {
         warn!("group optimization only has an effect with lossy compression");
     }
 
-    let images = image_util::load_from_path_with_path(&args.target)?;
+    let mut images = image_util::load_from_path_with_path(&args.target)?;
+
+    if args.recursive {
+        if args.target.is_dir() {
+            let folders = recursive_folders(&args.target)?;
+
+            info!("recursively searching for images in {:?}", args.target);
+
+            for folder in folders {
+                images.extend(image_util::load_from_path_with_path(&folder)?);
+            }
+        } else {
+            warn!("target is not a directory, recursive search disabled");
+        }
+    }
 
     if images.is_empty() {
         warn!("no source images found");
@@ -873,6 +891,27 @@ fn optimize(args: &OptimizeArgs) -> Result<(), CommandError> {
     info!("total reduction: {}", human_readable_bytes(total_saved));
 
     Ok(())
+}
+
+fn recursive_folders(path: impl AsRef<Path>) -> std::io::Result<Box<[PathBuf]>> {
+    let mut folders = Vec::new();
+
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_dir() {
+            folders.push(path);
+        }
+    }
+
+    let mut descent = Vec::new();
+    for folder in &folders {
+        descent.extend(recursive_folders(folder)?);
+    }
+
+    folders.extend(descent);
+    Ok(folders.into_boxed_slice())
 }
 
 fn file_size(path: impl AsRef<Path>) -> std::io::Result<u64> {

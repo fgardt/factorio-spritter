@@ -135,10 +135,10 @@ Options:
 
 ### Optimize
 ```
+~$ spritter help optimize
 Optimize an image or a folder of images.
 
-This is using oxipng (and optionally pngquant / imagequant when lossy is enabled).
-Note: the original images will be replaced with the optimized versions.
+This is using oxipng (and optionally pngquant / imagequant when lossy is enabled). Note: the original images will be replaced with the optimized versions.
 
 Usage: spritter optimize [OPTIONS] <TARGET>
 
@@ -146,6 +146,9 @@ Arguments:
   <TARGET>
 
 Options:
+  -r, --recursive
+          Recursively search for images in the target folder
+
   -g, --group
           Treat images as a group and optimize them together instead of individually.
           This is only has an effect with lossy compression.
