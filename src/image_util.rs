@@ -8,7 +8,8 @@ use std::{
 };
 
 use image::{
-    codecs::png, EncodableLayout, ImageBuffer, ImageEncoder, PixelWithColorType, Rgba, RgbaImage,
+    codecs::png, EncodableLayout, ImageBuffer, ImageEncoder, ImageReader, PixelWithColorType, Rgba,
+    RgbaImage,
 };
 use imagequant::{Attributes, Histogram, HistogramEntry};
 
@@ -86,8 +87,12 @@ pub fn load_from_path(path: &Path) -> ImgUtilResult<Vec<RgbaImage>> {
     Ok(res.into_iter().map(|(img, _)| img).collect())
 }
 
-fn load_image_from_file(path: &Path) -> ImgUtilResult<RgbaImage> {
-    let image = image::open(path)?.to_rgba8();
+pub fn load_image_from_file(path: &Path) -> ImgUtilResult<RgbaImage> {
+    trace!("loading image from {}", path.display());
+    let image = ImageReader::open(path)?
+        .with_guessed_format()?
+        .decode()?
+        .to_rgba8();
     Ok(image)
 }
 
@@ -203,6 +208,7 @@ where
     C: Deref<Target = [u8]>,
 {
     fn save_optimized_png(&self, path: impl AsRef<Path>, lossy: bool) -> ImgUtilResult<u64> {
+        trace!("saving image to {}", path.as_ref().display());
         let (width, height) = self.dimensions();
 
         let buf = if lossy {
@@ -214,14 +220,7 @@ where
             qres.set_dithering_level(1.0)?;
 
             let (palette, pxls) = qres.remapped(&mut img)?;
-            let palette = palette
-                .iter()
-                .map(|color| [color.r, color.g, color.b, color.a])
-                .collect::<Box<_>>();
-
-            (0..width * height)
-                .flat_map(|i| palette[pxls[i as usize] as usize])
-                .collect()
+            image_buf_from_palette(width, height, &convert_palette(&palette), &pxls)
         } else {
             Cow::Borrowed(self.as_bytes())
         };
@@ -258,7 +257,7 @@ where
     }
 }
 
-fn quantization_attributes() -> ImgUtilResult<Attributes> {
+pub fn quantization_attributes() -> ImgUtilResult<Attributes> {
     let mut attr = Attributes::new();
     attr.set_speed(1)?;
 
@@ -266,7 +265,12 @@ fn quantization_attributes() -> ImgUtilResult<Attributes> {
 }
 
 /// Encode image as PNG and optimize with [oxipng] before writing to disk.
-fn optimize_png(buf: &[u8], width: u32, height: u32, path: impl AsRef<Path>) -> ImgUtilResult<u64> {
+pub fn optimize_png(
+    buf: &[u8],
+    width: u32,
+    height: u32,
+    path: impl AsRef<Path>,
+) -> ImgUtilResult<u64> {
     let mut data = Vec::new();
     png::PngEncoder::new_with_quality(
         &mut data,
@@ -290,6 +294,24 @@ fn optimize_png(buf: &[u8], width: u32, height: u32, path: impl AsRef<Path>) -> 
     fs::File::create(path)?.write_all(&res)?;
 
     Ok(res.len() as u64)
+}
+
+pub fn convert_palette<'a>(palette: &[imagequant::RGBA]) -> Cow<'a, [[u8; 4]]> {
+    palette
+        .iter()
+        .map(|color| [color.r, color.g, color.b, color.a])
+        .collect()
+}
+
+pub fn image_buf_from_palette<'a>(
+    width: u32,
+    height: u32,
+    palette: &[[u8; 4]],
+    pixels: &[u8],
+) -> Cow<'a, [u8]> {
+    (0..width * height)
+        .flat_map(|i| palette[pixels[i as usize] as usize])
+        .collect()
 }
 
 /// Save sheets as PNG files.
@@ -317,15 +339,13 @@ pub fn save_sheets(
 
         let mut qres = histo.quantize(&quant)?;
         qres.set_dithering_level(1.0)?;
-        let palette = qres
-            .palette()
-            .iter()
-            .map(|color| [color.r, color.g, color.b, color.a])
-            .collect::<Box<_>>();
+        let palette = convert_palette(qres.palette());
 
         info!("analyzing done, saving images");
 
         for (idx, (sheet, path)) in sheets.iter().enumerate() {
+            trace!("saving image to {}", path.display());
+
             let (width, height) = sheet.dimensions();
             let w_usize = width as usize;
             let h_usize = height as usize;
@@ -335,9 +355,7 @@ pub fn save_sheets(
             qres.remap_into_vec(&mut img, &mut pxls)?;
 
             sizes.push(optimize_png(
-                &(0..width * height)
-                    .flat_map(|i| palette[pxls[i as usize] as usize])
-                    .collect::<Box<_>>(),
+                &image_buf_from_palette(width, height, &palette, &pxls),
                 width,
                 height,
                 path,
