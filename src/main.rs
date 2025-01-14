@@ -858,8 +858,11 @@ fn optimize(args: &OptimizeArgs) -> Result<(), CommandError> {
             );
         } else {
             warn!("target is not a directory, recursive search disabled");
-            paths.push(args.target.clone());
         }
+    }
+
+    if args.target.is_file() && args.target.extension().is_some_and(|ext| ext == "png") {
+        paths.push(args.target.clone());
     }
 
     if paths.is_empty() {
