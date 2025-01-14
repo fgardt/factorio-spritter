@@ -844,6 +844,7 @@ fn optimize(args: &OptimizeArgs) -> Result<(), CommandError> {
     let mut paths = Vec::new();
     if args.recursive {
         if args.target.is_dir() {
+            paths.extend(pngs_in_folder(&args.target)?);
             let folders = recursive_folders(&args.target)?;
 
             for folder in &folders {
