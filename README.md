@@ -151,7 +151,7 @@ Options:
 
   -g, --group
           Treat images as a group and optimize them together instead of individually.
-          This is only has an effect with lossy compression.
+          This only has an effect with lossy compression.
 
       --lossy
           Allow lossy compression

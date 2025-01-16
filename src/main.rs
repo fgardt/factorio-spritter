@@ -288,7 +288,7 @@ struct OptimizeArgs {
     pub recursive: bool,
 
     /// Treat images as a group and optimize them together instead of individually.
-    /// This is only has an effect with lossy compression.
+    /// This only has an effect with lossy compression.
     #[clap(short, long, action, verbatim_doc_comment)]
     pub group: bool,
 
