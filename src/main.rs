@@ -842,9 +842,11 @@ fn generate_gif(args: &GifArgs) -> Result<(), CommandError> {
 
 fn optimize(args: &OptimizeArgs) -> Result<(), CommandError> {
     let mut paths = Vec::new();
-    if args.recursive {
-        if args.target.is_dir() {
-            paths.extend(pngs_in_folder(&args.target)?);
+
+    if args.target.is_dir() {
+        paths.extend(pngs_in_folder(&args.target)?);
+
+        if args.recursive {
             let folders = recursive_folders(&args.target)?;
 
             for folder in &folders {
@@ -856,13 +858,15 @@ fn optimize(args: &OptimizeArgs) -> Result<(), CommandError> {
                 paths.len(),
                 folders.len()
             );
-        } else {
+        }
+    } else {
+        if args.recursive {
             warn!("target is not a directory, recursive search disabled");
         }
-    }
 
-    if args.target.is_file() && args.target.extension().is_some_and(|ext| ext == "png") {
-        paths.push(args.target.clone());
+        if args.target.extension().is_some_and(|ext| ext == "png") {
+            paths.push(args.target.clone());
+        }
     }
 
     if paths.is_empty() {
@@ -1040,7 +1044,7 @@ fn pngs_in_folder(path: impl AsRef<Path>) -> std::io::Result<Box<[PathBuf]>> {
         let entry = entry?;
         let path = entry.path();
 
-        if path.is_file() && path.extension().map_or(false, |ext| ext == "png") {
+        if path.is_file() && path.extension().is_some_and(|ext| ext == "png") {
             pngs.push(path);
         }
     }
