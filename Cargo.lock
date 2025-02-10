@@ -474,9 +474,9 @@ dependencies = [
 
 [[package]]
 name = "imagequant"
-version = "4.3.3"
+version = "4.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fecc99538c9061ee4d88476f6cd704c9f06575a34f0083affdaa1337a331aa7"
+checksum = "1cede25dbe6a6c3842989fa341cba6e2a4dc33ba12a33f553baeed257f965cb5"
 dependencies = [
  "arrayvec",
  "once_cell",
