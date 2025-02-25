@@ -126,7 +126,7 @@ impl std::fmt::Display for LuaValue {
             Self::Float(value) => write!(f, "{value}"),
             Self::Int(value) => write!(f, "{value}"),
             Self::Bool(value) => write!(f, "{value}"),
-            Self::Shift(x, y, res) => write!(f, "{{x = {x} / {res}, y = {y} / {res}}}"),
+            Self::Shift(x, y, res) => write!(f, "{{{x} / {res}, {y} / {res}}}"),
             Self::Array(arr) => {
                 write!(f, "{{")?;
                 for value in arr {
