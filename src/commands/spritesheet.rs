@@ -171,7 +171,7 @@ impl SpritesheetArgs {
 }
 
 /// Maximum side length of a single graphic file to load in Factorio
-static MAX_SIZE: u32 = 8192;
+static MAX_SIZE: u32 = 4096;
 
 #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
 fn generate_spritesheet(
