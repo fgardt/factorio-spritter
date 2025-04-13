@@ -82,6 +82,10 @@ pub struct SharedArgs {
     #[clap(short, long, action)]
     lua: bool,
 
+    /// Enable json output generation.
+    #[clap(short, long, action)]
+    json: bool,
+
     /// Prefix to add to the output file name.
     #[clap(short, long, default_value_t = String::new())]
     prefix: String,
