@@ -96,7 +96,19 @@ pub fn load_image_from_file(path: &Path) -> ImgUtilResult<RgbaImage> {
     Ok(image)
 }
 
-pub fn crop_images(images: &mut Vec<RgbaImage>, limit: u8) -> ImgUtilResult<(f64, f64)> {
+pub fn transparent_black(images: &mut [RgbaImage], black_limit: u8) {
+    static TRANSPARENT: Rgba<u8> = Rgba([0, 0, 0, 0]);
+
+    for image in images.iter_mut() {
+        for pxl in image.pixels_mut() {
+            if pxl[0] <= black_limit && pxl[1] <= black_limit && pxl[2] <= black_limit {
+                *pxl = TRANSPARENT;
+            }
+        }
+    }
+}
+
+pub fn crop_images(images: &mut Vec<RgbaImage>, alpha_limit: u8) -> ImgUtilResult<(f64, f64)> {
     if images.is_empty() {
         return Err(ImgUtilError::NoImagesToCrop);
     }
@@ -117,13 +129,13 @@ pub fn crop_images(images: &mut Vec<RgbaImage>, limit: u8) -> ImgUtilResult<(f64
 
         let mut x = image
             .enumerate_pixels()
-            .filter_map(|(x, _, pxl)| if pxl[3] > limit { Some(x) } else { None })
+            .filter_map(|(x, _, pxl)| if pxl[3] > alpha_limit { Some(x) } else { None })
             .collect::<Vec<_>>();
         x.sort_unstable();
 
         let mut y = image
             .enumerate_pixels()
-            .filter_map(|(_, y, pxl)| if pxl[3] > limit { Some(y) } else { None })
+            .filter_map(|(_, y, pxl)| if pxl[3] > alpha_limit { Some(y) } else { None })
             .collect::<Vec<_>>();
         y.sort_unstable();
 
@@ -154,7 +166,7 @@ pub fn crop_images(images: &mut Vec<RgbaImage>, limit: u8) -> ImgUtilResult<(f64
         }
     }
 
-    // are all images are empty? (or some other edge case?)
+    // are all images empty? (or some other edge case?)
     if min_x == u32::MAX || min_y == u32::MAX || max_x == u32::MIN || max_y == u32::MIN {
         return Err(ImgUtilError::AllImagesEmpty);
     }

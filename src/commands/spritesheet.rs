@@ -38,6 +38,11 @@ pub struct SpritesheetArgs {
     #[clap(short = 'a', long, default_value_t = 0, verbatim_doc_comment)]
     pub crop_alpha: u8,
 
+    /// Sets the max channel value to consider a pixel as black.
+    /// All "black" pixels will be turned fully transparent.
+    #[clap(short = 'b', long, default_value = None, verbatim_doc_comment)]
+    pub transparent_black: Option<u8>,
+
     /// Set a scaling factor to rescale the used sprites by.
     /// Values < 1.0 will shrink the sprites. Values > 1.0 will enlarge them.
     #[clap(short, long, default_value_t = 1.0, verbatim_doc_comment)]
@@ -195,6 +200,10 @@ fn generate_spritesheet(
 
             *image = imageops::resize(image, width, height, args.scale_filter.into());
         }
+    }
+
+    if let Some(black_limit) = args.transparent_black {
+        image_util::transparent_black(&mut images, black_limit);
     }
 
     let (shift_x, shift_y) = if args.no_crop {
