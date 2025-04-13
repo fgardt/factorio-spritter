@@ -56,6 +56,9 @@ Options:
   -a, --crop-alpha <CROP_ALPHA>
           Sets the max alpha value to consider a pixel as transparent [0-255].
           Use a higher value in case your inputs have slightly transparent pixels and don't crop nicely. [default: 0]
+  -b, --transparent-black <TRANSPARENT_BLACK>
+          Sets the max channel value to consider a pixel as black.
+          All "black" pixels will be turned fully transparent.
   -s, --scale <SCALE>
           Set a scaling factor to rescale the used sprites by.
           Values < 1.0 will shrink the sprites. Values > 1.0 will enlarge them. [default: 1]
