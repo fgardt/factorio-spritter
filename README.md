@@ -67,6 +67,9 @@ Options:
       --single-sheet-split-mode
           Automatically split each frame into multiple subframes if the frames would not fit on a single sheet.
           This allows you to use large sprites for graphic types that do not allow to specify multiple files for a single layer.
+  -m, --max-sheet-size <MAX_SHEET_SIZE>
+          Maximum size of a single sheet in frames per axis.
+          A value of 0 means unlimited. [default: 0]
 ```
 
 ### Icon

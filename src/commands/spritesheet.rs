@@ -56,6 +56,11 @@ pub struct SpritesheetArgs {
     /// This allows you to use large sprites for graphic types that do not allow to specify multiple files for a single layer.
     #[clap(long, action, verbatim_doc_comment)]
     pub single_sheet_split_mode: bool,
+
+    /// Maximum size of a single sheet in frames per axis.
+    /// A value of 0 means unlimited.
+    #[clap(short, long, default_value_t = 0, verbatim_doc_comment)]
+    pub max_sheet_size: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, VariantArray)]
@@ -216,8 +221,12 @@ fn generate_spritesheet(
     let (sprite_width, sprite_height) = images.first().unwrap().dimensions();
     let sprite_count = images.len() as u32;
 
-    let max_cols_per_sheet = MAX_SIZE / sprite_width;
-    let max_rows_per_sheet = MAX_SIZE / sprite_height;
+    let (max_cols_per_sheet, max_rows_per_sheet) = if args.max_sheet_size == 0 {
+        (MAX_SIZE / sprite_width, MAX_SIZE / sprite_height)
+    } else {
+        (args.max_sheet_size, args.max_sheet_size)
+    };
+
     let max_per_sheet = max_rows_per_sheet * max_cols_per_sheet;
 
     let sheet_count = images.len() / max_per_sheet as usize
