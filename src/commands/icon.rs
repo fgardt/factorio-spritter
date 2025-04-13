@@ -98,17 +98,19 @@ pub fn generate_mipmap_icon(args: &IconArgs) -> Result<(), CommandError> {
             args.lossy,
         )?;
 
-    if args.lua {
-        LuaOutput::new()
+    if args.lua || args.json {
+        let data = LuaOutput::new()
             .set("icon_size", base_width)
-            .set("icon_mipmaps", images.len())
-            .save(output_name(
-                &args.source,
-                &args.output,
-                None,
-                &args.prefix,
-                "lua",
-            )?)?;
+            .set("icon_mipmaps", images.len());
+
+        if args.lua {
+            let out = output_name(&args.source, &args.output, None, &args.prefix, "lua")?;
+            data.save(&out)?;
+        }
+        if args.json {
+            let out = output_name(&args.source, &args.output, None, &args.prefix, "json")?;
+            data.save_as_json(out)?;
+        }
     }
 
     Ok(())

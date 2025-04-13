@@ -388,9 +388,8 @@ fn generate_spritesheet(
         );
     }
 
-    if args.lua {
-        let out = output_name(source, &args.output, None, &args.prefix, "lua")?;
-        LuaOutput::new()
+    if args.lua || args.json {
+        let data = LuaOutput::new()
             .set("width", sprite_width)
             .set("height", sprite_height)
             .set("shift", (shift_x, shift_y, args.tile_res()))
@@ -398,8 +397,16 @@ fn generate_spritesheet(
             .set("sprite_count", sprite_count)
             .set("line_length", cols_per_sheet)
             .set("lines_per_file", rows_per_sheet)
-            .set("file_count", sheet_count)
-            .save(out)?;
+            .set("file_count", sheet_count);
+
+        if args.lua {
+            let out = output_name(source, &args.output, None, &args.prefix, "lua")?;
+            data.save(out)?;
+        }
+        if args.json {
+            let out = output_name(source, &args.output, None, &args.prefix, "json")?;
+            data.save_as_json(out)?;
+        }
     }
 
     Ok(name)

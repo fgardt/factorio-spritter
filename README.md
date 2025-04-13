@@ -41,6 +41,8 @@ Arguments:
 Options:
   -l, --lua
           Enable lua output generation
+  -j, --json
+          Enable json output generation
   -p, --prefix <PREFIX>
           Prefix to add to the output file name [default: ]
       --lossy
@@ -84,6 +86,9 @@ Arguments:
 Options:
   -l, --lua
           Enable lua output generation
+
+  -j, --json
+          Enable json output generation
 
   -p, --prefix <PREFIX>
           Prefix to add to the output file name

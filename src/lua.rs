@@ -119,8 +119,8 @@ impl From<Box<[LuaOutput]>> for LuaValue {
     }
 }
 
-impl std::fmt::Display for LuaValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl LuaValue {
+    fn gen_lua(&self, f: &mut dyn Write) -> std::io::Result<()> {
         match self {
             Self::String(value) => write!(f, "\"{value}\""),
             Self::Float(value) => write!(f, "{value}"),
@@ -130,11 +130,38 @@ impl std::fmt::Display for LuaValue {
             Self::Array(arr) => {
                 write!(f, "{{")?;
                 for value in arr {
-                    write!(f, "{value},")?;
+                    value.gen_lua(f)?;
+                    write!(f, ",")?;
                 }
                 write!(f, "}}")
             }
-            Self::Table(table) => write!(f, "{table}"),
+            Self::Table(table) => table.gen_lua(f),
+        }
+    }
+
+    fn gen_json(&self, f: &mut dyn Write) -> std::io::Result<()> {
+        match self {
+            Self::String(value) => write!(f, "\"{value}\""),
+            Self::Float(value) => write!(f, "{value}"),
+            Self::Int(value) => write!(f, "{value}"),
+            Self::Bool(value) => write!(f, "{value}"),
+            Self::Shift(x, y, res) => {
+                let x = x / *res as f64;
+                let y = y / *res as f64;
+                write!(f, "[{x},{y}]")
+            }
+            Self::Array(arr) => {
+                write!(f, "[")?;
+                let len = arr.len();
+                for (i, value) in arr.iter().enumerate() {
+                    value.gen_json(f)?;
+                    if i < len - 1 {
+                        write!(f, ",")?;
+                    }
+                }
+                write!(f, "]")
+            }
+            Self::Table(table) => table.gen_json(f),
         }
     }
 }
@@ -176,21 +203,70 @@ impl LuaOutput {
         )?;
 
         for (key, data) in &self.map {
-            writeln!(file, "  [\"{key}\"] = {data},")?;
+            write!(file, "  [\"{key}\"] = ")?;
+            data.gen_lua(&mut file)?;
+            writeln!(file, ",")?;
         }
 
         writeln!(file, "}}")?;
 
         Ok(())
     }
-}
 
-impl std::fmt::Display for LuaOutput {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    pub fn save_as_json(&self, path: impl AsRef<Path>) -> std::io::Result<()> {
+        let mut file = std::fs::File::create(path)?;
+
+        writeln!(file, "{{")?;
+        writeln!(
+            file,
+            "  \"spritter\": [{},{},{}],",
+            env!("CARGO_PKG_VERSION_MAJOR"),
+            env!("CARGO_PKG_VERSION_MINOR"),
+            env!("CARGO_PKG_VERSION_PATCH")
+        )?;
+
+        let len = self.map.len();
+        for (index, (key, data)) in self.map.iter().enumerate() {
+            write!(file, "  \"{key}\": ")?;
+            data.gen_json(&mut file)?;
+            if index < len - 1 {
+                writeln!(file, ",")?;
+            } else {
+                writeln!(file)?;
+            }
+        }
+
+        writeln!(file, "}}")?;
+
+        Ok(())
+    }
+
+    fn gen_lua(&self, f: &mut dyn Write) -> std::io::Result<()> {
         write!(f, "{{")?;
 
         for (key, data) in &self.map {
-            write!(f, "[\"{key}\"] = {data},")?;
+            write!(f, "[\"{key}\"] = ")?;
+            data.gen_lua(f)?;
+            write!(f, ",")?;
+        }
+
+        write!(f, "}}")?;
+
+        Ok(())
+    }
+
+    fn gen_json(&self, f: &mut dyn Write) -> std::io::Result<()> {
+        write!(f, "{{")?;
+
+        let len = self.map.len();
+        for (index, (key, data)) in self.map.iter().enumerate() {
+            write!(f, "\"{key}\": ")?;
+            data.gen_json(f)?;
+            if index < len - 1 {
+                write!(f, ",")?;
+            } else {
+                writeln!(f)?;
+            }
         }
 
         write!(f, "}}")?;
