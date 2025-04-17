@@ -291,7 +291,7 @@ fn generate_spritesheet(
 
     // unnecessarily overengineered PoS to calculate special sheet sizes if only 1 sheet is needed
     let (sheet_width, sheet_height, cols_per_sheet, rows_per_sheet, max_per_sheet) =
-        if max_per_sheet <= sprite_count {
+        if max_per_sheet < sprite_count {
             debug!("multiple sheets needed: {max_cols_per_sheet}x{max_rows_per_sheet}");
 
             (
@@ -308,7 +308,7 @@ fn generate_spritesheet(
 
             trace!("calculating custom sheet size");
             while cols * rows < sprite_count {
-                if cols * sprite_width <= rows * sprite_height {
+                if (cols < max_cols_per_sheet) && (cols * sprite_width <= rows * sprite_height) {
                     cols += 1;
                     trace!("cols++ | {cols}x{rows}");
                 } else {
