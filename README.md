@@ -70,6 +70,10 @@ Options:
   -m, --max-sheet-size <MAX_SHEET_SIZE>
           Maximum size of a single sheet in frames per axis.
           A value of 0 means unlimited. [default: 0]
+  -w, --max-sheet-width <MAX_SHEET_WIDTH>
+          Maximum width of a single sheet in frames.
+          A value of 0 means unlimited.
+          Use this in combination with --max-sheet-size to precisely control the size of sheets. [default: 0]
 ```
 
 ### Icon
