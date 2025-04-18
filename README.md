@@ -59,6 +59,10 @@ Options:
   -b, --transparent-black <TRANSPARENT_BLACK>
           Sets the max channel value to consider a pixel as black.
           All "black" pixels will be turned fully transparent.
+  -d, --deduplicate-empty-frames
+          Remove duplicate empty frames before building the sprite sheet.
+          This will generate a frame_sequence in the data output to restore the original frame order.
+          Make sure to have the --lua or --json flag set to receive the data output!
   -s, --scale <SCALE>
           Set a scaling factor to rescale the used sprites by.
           Values < 1.0 will shrink the sprites. Values > 1.0 will enlarge them. [default: 1]

@@ -101,6 +101,12 @@ impl From<bool> for LuaValue {
     }
 }
 
+impl<T: Into<LuaValue> + Clone> From<&[T]> for LuaValue {
+    fn from(value: &[T]) -> Self {
+        Self::Array(value.iter().cloned().map(|x| x.into()).collect())
+    }
+}
+
 impl From<(f64, f64, usize)> for LuaValue {
     fn from((shift_x, shift_y, res): (f64, f64, usize)) -> Self {
         Self::Shift(shift_x, shift_y, res)
@@ -113,9 +119,9 @@ impl From<LuaOutput> for LuaValue {
     }
 }
 
-impl From<Box<[LuaOutput]>> for LuaValue {
-    fn from(value: Box<[LuaOutput]>) -> Self {
-        Self::Array(value.iter().map(|x| Self::Table(x.clone())).collect())
+impl<T: Into<LuaValue> + Clone> From<&T> for LuaValue {
+    fn from(value: &T) -> Self {
+        value.clone().into()
     }
 }
 

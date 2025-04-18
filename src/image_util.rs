@@ -208,6 +208,29 @@ pub fn crop_images(images: &mut Vec<RgbaImage>, alpha_limit: u8) -> ImgUtilResul
     Ok((shift_x, shift_y))
 }
 
+pub fn dedup_empty_frames(images: Vec<RgbaImage>) -> (Vec<RgbaImage>, Vec<usize>) {
+    let mut res = Vec::with_capacity(images.len());
+    let mut sequence = Vec::with_capacity(images.len());
+    let mut first_empty_idx = usize::MAX;
+
+    for image in images {
+        let empty = image.pixels().all(|pxl| pxl[3] == 0);
+        if empty {
+            if first_empty_idx == usize::MAX {
+                first_empty_idx = res.len();
+                res.push(image);
+            }
+
+            sequence.push(first_empty_idx);
+        } else {
+            sequence.push(res.len());
+            res.push(image);
+        }
+    }
+
+    (res, sequence)
+}
+
 pub trait ImageBufferExt<P, C> {
     fn save_optimized_png(&self, path: impl AsRef<Path>, lossy: bool) -> ImgUtilResult<u64>;
 
