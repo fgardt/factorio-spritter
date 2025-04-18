@@ -101,9 +101,9 @@ impl From<bool> for LuaValue {
     }
 }
 
-impl<T: Into<LuaValue> + Clone> From<&[T]> for LuaValue {
+impl<T: Into<Self> + Clone> From<&[T]> for LuaValue {
     fn from(value: &[T]) -> Self {
-        Self::Array(value.iter().cloned().map(|x| x.into()).collect())
+        Self::Array(value.iter().cloned().map(Into::into).collect())
     }
 }
 
@@ -119,7 +119,7 @@ impl From<LuaOutput> for LuaValue {
     }
 }
 
-impl<T: Into<LuaValue> + Clone> From<&T> for LuaValue {
+impl<T: Into<Self> + Clone> From<&T> for LuaValue {
     fn from(value: &T) -> Self {
         value.clone().into()
     }

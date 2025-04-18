@@ -32,7 +32,7 @@ fn main() -> ExitCode {
     };
 
     if let Err(err) = res {
-        error!("{}", err);
+        error!("{err}");
         return ExitCode::FAILURE;
     }
 

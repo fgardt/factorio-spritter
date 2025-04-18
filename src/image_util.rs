@@ -397,12 +397,12 @@ pub fn save_sheets(
             )?);
 
             if sheets_count > 10 && (idx + 1) % 10 == 0 {
-                info!("saved {}/{}", idx + 1, sheets_count);
+                info!("saved {}/{sheets_count}", idx + 1);
             }
         }
 
         if sheets_count > 10 && sheets_count % 10 != 0 {
-            info!("saved {}/{}", sheets_count, sheets_count);
+            info!("saved {sheets_count}/{sheets_count}");
         }
 
         return Ok(sizes.into_boxed_slice());
@@ -414,12 +414,12 @@ pub fn save_sheets(
         sizes.push(sheet.save_optimized_png(path, lossy)?);
 
         if sheets_count > 10 && (idx + 1) % 10 == 0 {
-            info!("saved {}/{}", idx + 1, sheets_count);
+            info!("saved {}/{sheets_count}", idx + 1);
         }
     }
 
     if sheets_count > 10 && sheets_count % 10 != 0 {
-        info!("saved {}/{}", sheets_count, sheets_count);
+        info!("saved {sheets_count}/{sheets_count}");
     }
 
     Ok(sizes.into_boxed_slice())

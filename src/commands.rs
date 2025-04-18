@@ -108,7 +108,7 @@ fn output_name(
         .as_ref()
         .canonicalize()?
         .components()
-        .last()
+        .next_back()
         .unwrap()
         .as_os_str()
         .to_string_lossy()

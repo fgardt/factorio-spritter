@@ -44,7 +44,7 @@ pub struct SpritesheetArgs {
     pub transparent_black: Option<u8>,
 
     /// Remove duplicate empty frames before building the sprite sheet.
-    /// This will generate a frame_sequence in the data output to restore the original frame order.
+    /// This will generate a `frame_sequence` in the data output to restore the original frame order.
     /// Make sure to have the --lua or --json flag set to receive the data output!
     #[clap(short, long, action, verbatim_doc_comment)]
     pub deduplicate_empty_frames: bool,
@@ -271,7 +271,7 @@ fn generate_spritesheet(
     let name = source
         .canonicalize()?
         .components()
-        .last()
+        .next_back()
         .unwrap()
         .as_os_str()
         .to_string_lossy()
