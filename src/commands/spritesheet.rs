@@ -61,6 +61,12 @@ pub struct SpritesheetArgs {
     /// A value of 0 means unlimited.
     #[clap(short, long, default_value_t = 0, verbatim_doc_comment)]
     pub max_sheet_size: u32,
+
+    /// Maximum width of a single sheet in frames.
+    /// A value of 0 means unlimited.
+    /// Use this in combination with --max-sheet-size to precisely control the size of sheets.
+    #[clap(short = 'w', long, default_value_t = 0, verbatim_doc_comment)]
+    pub max_sheet_width: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, VariantArray)]
@@ -221,10 +227,24 @@ fn generate_spritesheet(
     let (sprite_width, sprite_height) = images.first().unwrap().dimensions();
     let sprite_count = images.len() as u32;
 
-    let (max_cols_per_sheet, max_rows_per_sheet) = if args.max_sheet_size == 0 {
-        (MAX_SIZE / sprite_width, MAX_SIZE / sprite_height)
-    } else {
-        (args.max_sheet_size, args.max_sheet_size)
+    let (max_cols_per_sheet, max_rows_per_sheet) = {
+        let technical_max_cols = MAX_SIZE / sprite_width;
+        let technical_max_rows = MAX_SIZE / sprite_height;
+
+        match (args.max_sheet_size, args.max_sheet_width) {
+            (0, 0) => (technical_max_cols, technical_max_rows),
+            (max_sheet_size, 0) if max_sheet_size > 0 => (
+                max_sheet_size.min(technical_max_cols),
+                max_sheet_size.min(technical_max_rows),
+            ),
+            (0, max_sheet_width) if max_sheet_width > 0 => {
+                (max_sheet_width.min(technical_max_cols), technical_max_rows)
+            }
+            (max_sheet_size, max_sheet_width) => (
+                max_sheet_width.min(technical_max_cols),
+                max_sheet_size.min(technical_max_rows),
+            ),
+        }
     };
 
     let max_per_sheet = max_rows_per_sheet * max_cols_per_sheet;
@@ -291,8 +311,8 @@ fn generate_spritesheet(
 
     // unnecessarily overengineered PoS to calculate special sheet sizes if only 1 sheet is needed
     let (sheet_width, sheet_height, cols_per_sheet, rows_per_sheet, max_per_sheet) =
-        if max_per_sheet < sprite_count {
-            debug!("multiple sheets needed: {max_cols_per_sheet}x{max_rows_per_sheet}");
+        if max_per_sheet <= sprite_count {
+            debug!("using maximized sheet: {max_cols_per_sheet}x{max_rows_per_sheet}");
 
             (
                 sprite_width * max_cols_per_sheet,
