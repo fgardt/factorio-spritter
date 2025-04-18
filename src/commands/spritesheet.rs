@@ -43,6 +43,12 @@ pub struct SpritesheetArgs {
     #[clap(short = 'b', long, default_value = None, verbatim_doc_comment)]
     pub transparent_black: Option<u8>,
 
+    /// Remove duplicate empty frames before building the sprite sheet.
+    /// This will generate a frame_sequence in the data output to restore the original frame order.
+    /// Make sure to have the --lua or --json flag set to receive the data output!
+    #[clap(short, long, action, verbatim_doc_comment)]
+    pub deduplicate_empty_frames: bool,
+
     /// Set a scaling factor to rescale the used sprites by.
     /// Values < 1.0 will shrink the sprites. Values > 1.0 will enlarge them.
     #[clap(short, long, default_value_t = 1.0, verbatim_doc_comment)]
@@ -223,6 +229,15 @@ fn generate_spritesheet(
         image_util::crop_images(&mut images, args.crop_alpha)?
     };
 
+    // dedup empty frames
+    let frame_sequence = if args.deduplicate_empty_frames {
+        let (dedup_imgs, sequence) = image_util::dedup_empty_frames(images);
+        images = dedup_imgs;
+        Some(sequence)
+    } else {
+        None
+    };
+
     #[allow(clippy::unwrap_used)]
     let (sprite_width, sprite_height) = images.first().unwrap().dimensions();
     let sprite_count = images.len() as u32;
@@ -273,16 +288,20 @@ fn generate_spritesheet(
             let (sheet, (width, height), (shift_x, shift_y), (cols, rows)) = layer;
             let out = output_name(source, &args.output, Some(idx), &args.prefix, "png")?;
 
-            lua_layers.push(
-                LuaOutput::new()
-                    .set("width", *width)
-                    .set("height", *height)
-                    .set("shift", (*shift_x, *shift_y, args.tile_res()))
-                    .set("scale", 32.0 / args.tile_res() as f64)
-                    .set("sprite_count", sprite_count)
-                    .set("line_length", *cols)
-                    .set("lines_per_file", *rows),
-            );
+            let mut data = LuaOutput::new()
+                .set("width", *width)
+                .set("height", *height)
+                .set("shift", (*shift_x, *shift_y, args.tile_res()))
+                .set("scale", 32.0 / args.tile_res() as f64)
+                .set("sprite_count", sprite_count)
+                .set("line_length", *cols)
+                .set("lines_per_file", *rows);
+
+            if let Some(sequence) = &frame_sequence {
+                data = data.set("frame_sequence", sequence.as_slice());
+            }
+
+            lua_layers.push(data);
 
             sheets.push((sheet.clone(), out));
         }
@@ -291,7 +310,7 @@ fn generate_spritesheet(
 
         if args.lua {
             LuaOutput::new()
-                .set("single_sheet_split_layers", lua_layers.into_boxed_slice())
+                .set("single_sheet_split_layers", lua_layers.as_slice())
                 .save(output_name(
                     source,
                     &args.output,
@@ -427,7 +446,7 @@ fn generate_spritesheet(
     }
 
     if args.lua || args.json {
-        let data = LuaOutput::new()
+        let mut data = LuaOutput::new()
             .set("width", sprite_width)
             .set("height", sprite_height)
             .set("shift", (shift_x, shift_y, args.tile_res()))
@@ -436,6 +455,10 @@ fn generate_spritesheet(
             .set("line_length", cols_per_sheet)
             .set("lines_per_file", rows_per_sheet)
             .set("file_count", sheet_count);
+
+        if let Some(sequence) = frame_sequence {
+            data = data.set("frame_sequence", sequence.as_slice());
+        }
 
         if args.lua {
             let out = output_name(source, &args.output, None, &args.prefix, "lua")?;
