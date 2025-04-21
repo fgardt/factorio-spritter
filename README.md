@@ -82,7 +82,7 @@ Options:
           The sheet layout mode to use.
           This affects how many rows and columns are used to arrange the sprites on the sheet.
           "square" tries to arrange the sprites in a way that the resulting sheet is as square as possible.
-          "fill-row" maximizes the number of rows while "fill-column" maximizes the number of columns. [default: square] [possible values: square, fill-row, fill-column]
+          "fill-row" maximizes the number of columns while "fill-column" maximizes the number of rows. [default: square] [possible values: square, fill-row, fill-column]
 ```
 
 ### Icon

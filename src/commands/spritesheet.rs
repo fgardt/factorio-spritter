@@ -77,7 +77,7 @@ pub struct SpritesheetArgs {
     /// The sheet layout mode to use.
     /// This affects how many rows and columns are used to arrange the sprites on the sheet.
     /// "square" tries to arrange the sprites in a way that the resulting sheet is as square as possible.
-    /// "fill-row" maximizes the number of rows while "fill-column" maximizes the number of columns.
+    /// "fill-row" maximizes the number of columns while "fill-column" maximizes the number of rows.
     #[clap(long, default_value_t = SheetLayoutMode::Square, verbatim_doc_comment)]
     pub layout_mode: SheetLayoutMode,
 }
