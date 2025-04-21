@@ -73,6 +73,13 @@ pub struct SpritesheetArgs {
     /// Use this in combination with --max-sheet-size to precisely control the size of sheets.
     #[clap(short = 'w', long, default_value_t = 0, verbatim_doc_comment)]
     pub max_sheet_width: u32,
+
+    /// The sheet layout mode to use.
+    /// This affects how many rows and columns are used to arrange the sprites on the sheet.
+    /// "square" tries to arrange the sprites in a way that the resulting sheet is as square as possible.
+    /// "fill-row" maximizes the number of rows while "fill-column" maximizes the number of columns.
+    #[clap(long, default_value_t = SheetLayoutMode::Square, verbatim_doc_comment)]
+    pub layout_mode: SheetLayoutMode,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, VariantArray)]
@@ -82,6 +89,13 @@ pub enum ScaleFilter {
     CatmullRom,
     Gaussian,
     Lanczos3,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, VariantArray)]
+pub enum SheetLayoutMode {
+    Square,
+    FillRow,
+    FillColumn,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -126,6 +140,30 @@ impl ValueEnum for ScaleFilter {
             Self::CatmullRom => "catmull-rom",
             Self::Gaussian => "gaussian",
             Self::Lanczos3 => "lanczos3",
+        }))
+    }
+}
+
+impl std::fmt::Display for SheetLayoutMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Square => write!(f, "square"),
+            Self::FillRow => write!(f, "fill-row"),
+            Self::FillColumn => write!(f, "fill-column"),
+        }
+    }
+}
+
+impl ValueEnum for SheetLayoutMode {
+    fn value_variants<'a>() -> &'a [Self] {
+        Self::VARIANTS
+    }
+
+    fn to_possible_value(&self) -> Option<PossibleValue> {
+        Some(PossibleValue::new(match self {
+            Self::Square => "square",
+            Self::FillRow => "fill-row",
+            Self::FillColumn => "fill-column",
         }))
     }
 }
@@ -341,18 +379,45 @@ fn generate_spritesheet(
                 max_per_sheet,
             )
         } else {
-            // everything can fit 1 sheet -> custom arrange in as square as possible
+            trace!("calculating custom sheet size");
             let mut cols = 1;
             let mut rows = 1;
 
-            trace!("calculating custom sheet size");
-            while cols * rows < sprite_count {
-                if (cols < max_cols_per_sheet) && (cols * sprite_width <= rows * sprite_height) {
-                    cols += 1;
-                    trace!("cols++ | {cols}x{rows}");
-                } else {
-                    rows += 1;
-                    trace!("rows++ | {cols}x{rows}");
+            match args.layout_mode {
+                SheetLayoutMode::Square => {
+                    while cols * rows < sprite_count {
+                        if (cols < max_cols_per_sheet)
+                            && (cols * sprite_width <= rows * sprite_height)
+                        {
+                            cols += 1;
+                            trace!("cols++ | {cols}x{rows}");
+                        } else {
+                            rows += 1;
+                            trace!("rows++ | {cols}x{rows}");
+                        }
+                    }
+                }
+                SheetLayoutMode::FillRow => {
+                    while cols * rows < sprite_count {
+                        if cols < max_cols_per_sheet {
+                            cols += 1;
+                            trace!("cols++ | {cols}x{rows}");
+                        } else {
+                            rows += 1;
+                            trace!("rows++ | {cols}x{rows}");
+                        }
+                    }
+                }
+                SheetLayoutMode::FillColumn => {
+                    while cols * rows < sprite_count {
+                        if rows < max_rows_per_sheet {
+                            rows += 1;
+                            trace!("rows++ | {cols}x{rows}");
+                        } else {
+                            cols += 1;
+                            trace!("cols++ | {cols}x{rows}");
+                        }
+                    }
                 }
             }
 
