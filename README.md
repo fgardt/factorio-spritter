@@ -78,6 +78,11 @@ Options:
           Maximum width of a single sheet in frames.
           A value of 0 means unlimited.
           Use this in combination with --max-sheet-size to precisely control the size of sheets. [default: 0]
+      --layout-mode <LAYOUT_MODE>
+          The sheet layout mode to use.
+          This affects how many rows and columns are used to arrange the sprites on the sheet.
+          "square" tries to arrange the sprites in a way that the resulting sheet is as square as possible.
+          "fill-row" maximizes the number of rows while "fill-column" maximizes the number of columns. [default: square] [possible values: square, fill-row, fill-column]
 ```
 
 ### Icon
