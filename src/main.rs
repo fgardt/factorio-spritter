@@ -10,7 +10,7 @@ mod image_util;
 mod logger;
 mod lua;
 
-use commands::{generate_gif, generate_mipmap_icon, optimize, GenerationCommand};
+use commands::{generate_gif, generate_mipmap_icon, optimize, split, GenerationCommand};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about=None)]
@@ -29,6 +29,7 @@ fn main() -> ExitCode {
         GenerationCommand::Icon { args } => generate_mipmap_icon(&args),
         GenerationCommand::Gif { args } => generate_gif(&args),
         GenerationCommand::Optimize { args } => optimize(&args),
+        GenerationCommand::Split { args } => split(&args),
     };
 
     if let Err(err) = res {

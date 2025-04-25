@@ -1,11 +1,13 @@
 mod gif;
 mod icon;
 mod optimize;
+mod split;
 mod spritesheet;
 
 pub use gif::*;
 pub use icon::*;
 pub use optimize::*;
+pub use split::*;
 pub use spritesheet::*;
 
 use clap::{Args, Subcommand};
@@ -46,6 +48,13 @@ pub enum GenerationCommand {
         // args
         #[clap(flatten)]
         args: OptimizeArgs,
+    },
+
+    /// Split a spritesheet into individual images.
+    Split {
+        // args
+        #[clap(flatten)]
+        args: SplitArgs,
     },
 }
 

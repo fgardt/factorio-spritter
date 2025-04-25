@@ -19,6 +19,7 @@ Commands:
   icon         Generate a mipmap icon from a folder of images
   gif          Generate a gif from a folder of images
   optimize     Optimize an image or a folder of images
+  split        Split a spritesheet into individual images
   help         Print this message or the help of the given subcommand(s)
 
 Options:
@@ -179,4 +180,19 @@ Options:
 
       --lossy
           Allow lossy compression
+```
+
+### Split
+
+```
+~$ spritter help split
+Split a spritesheet into individual images
+
+Usage: spritter split <SOURCE> <WIDTH> <HEIGHT> <OUTPUT>
+
+Arguments:
+  <SOURCE>  The spritesheet to split into individual frames
+  <WIDTH>   Number of frames horizontally
+  <HEIGHT>  Number of frames vertically
+  <OUTPUT>  Output folder
 ```
