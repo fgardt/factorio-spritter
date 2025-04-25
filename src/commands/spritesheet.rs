@@ -21,7 +21,7 @@ pub struct SpritesheetArgs {
     #[clap(flatten)]
     shared: SharedArgs,
 
-    /// Recursive search for images. Each folder will be a separate sprite sheet
+    /// Recursive search for images. Each folder will be a separate spritesheet
     #[clap(short, long, action)]
     pub recursive: bool,
 
@@ -43,7 +43,7 @@ pub struct SpritesheetArgs {
     #[clap(short = 'b', long, default_value = None, verbatim_doc_comment)]
     pub transparent_black: Option<u8>,
 
-    /// Remove duplicate empty frames before building the sprite sheet.
+    /// Remove duplicate empty frames before building the spritesheet.
     /// This will generate a `frame_sequence` in the data output to restore the original frame order.
     /// Make sure to have the --lua or --json flag set to receive the data output!
     #[clap(short, long, action, verbatim_doc_comment)]
