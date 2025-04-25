@@ -15,7 +15,7 @@ Spritesheet generator for factorio
 Usage: spritter <COMMAND>
 
 Commands:
-  spritesheet  Generate sprite sheets from a folder of images
+  spritesheet  Generate spritesheets from a folder of images
   icon         Generate a mipmap icon from a folder of images
   gif          Generate a gif from a folder of images
   optimize     Optimize an image or a folder of images
@@ -30,7 +30,7 @@ Options:
 
 ```
 ~$ spritter help spritesheet
-Generate sprite sheets from a folder of images
+Generate spritesheets from a folder of images
 
 Usage: spritter spritesheet [OPTIONS] <SOURCE> <OUTPUT>
 
@@ -48,7 +48,7 @@ Options:
       --lossy
           Allow lossy compression for the output images. This is using pngquant / imagequant internally
   -r, --recursive
-          Recursive search for images. Each folder will be a separate sprite sheet
+          Recursive search for images. Each folder will be a separate spritesheet
   -t, --tile-resolution <TILE_RESOLUTION>
           Resolution of the input sprites in pixels / tile [default: 64]
       --no-crop
@@ -60,7 +60,7 @@ Options:
           Sets the max channel value to consider a pixel as black.
           All "black" pixels will be turned fully transparent.
   -d, --deduplicate-empty-frames
-          Remove duplicate empty frames before building the sprite sheet.
+          Remove duplicate empty frames before building the spritesheet.
           This will generate a frame_sequence in the data output to restore the original frame order.
           Make sure to have the --lua or --json flag set to receive the data output!
   -s, --scale <SCALE>

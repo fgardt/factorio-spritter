@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 
 #[derive(Subcommand, Debug)]
 pub enum GenerationCommand {
-    /// Generate sprite sheets from a folder of images.
+    /// Generate spritesheets from a folder of images.
     Spritesheet {
         // args
         #[clap(flatten)]
