@@ -401,7 +401,7 @@ pub fn save_sheets(
             }
         }
 
-        if sheets_count > 10 && sheets_count % 10 != 0 {
+        if sheets_count > 10 && !sheets_count.is_multiple_of(10) {
             info!("saved {sheets_count}/{sheets_count}");
         }
 
@@ -418,7 +418,7 @@ pub fn save_sheets(
         }
     }
 
-    if sheets_count > 10 && sheets_count % 10 != 0 {
+    if sheets_count > 10 && !sheets_count.is_multiple_of(10) {
         info!("saved {sheets_count}/{sheets_count}");
     }
 
