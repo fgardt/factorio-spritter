@@ -68,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download release artifacts from build job
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: ~/build_artifacts
       - name: Create release
