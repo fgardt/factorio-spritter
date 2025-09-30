@@ -3,7 +3,7 @@ name: release
 on:
   push:
     tags:
-       - '[0-9]+.[0-9]+.[0-9]+'
+      - "[0-9]+.[0-9]+.[0-9]+"
 
 jobs:
   release_build:
@@ -38,9 +38,11 @@ jobs:
             bin: spritter
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-      - name: Stable rust toolchain
-        run: rustup toolchain install stable --target ${{ matrix.platform.target }} --profile minimal
+        uses: actions/checkout@v5
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.target }}
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
