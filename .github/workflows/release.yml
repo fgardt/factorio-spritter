@@ -58,7 +58,7 @@ jobs:
           directory: ./target/${{ matrix.platform.target }}/release
           path: ${{ matrix.platform.bin }}
       - name: Upload release artifact for release job
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: release_${{ matrix.platform.target }}
           path: ./target/${{ matrix.platform.target }}/release/spritter_${{ matrix.platform.target }}.${{ matrix.platform.archive_type }}
