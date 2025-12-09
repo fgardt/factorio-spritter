@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup toolchain + rustfmt
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -31,7 +31,7 @@ jobs:
     if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup toolchain + clippy
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -75,7 +75,7 @@ jobs:
           - stable
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup ${{ matrix.toolchain }} toolchain
         uses: dtolnay/rust-toolchain@master
         with:
