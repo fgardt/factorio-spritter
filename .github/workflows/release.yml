@@ -38,7 +38,7 @@ jobs:
             bin: spritter
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
