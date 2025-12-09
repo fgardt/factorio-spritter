@@ -34,5 +34,5 @@ rayon = "1.11"
 strum = { version = "0.27", features = ["derive"] }
 thiserror = "2"
 natord = "1.0"
-oxipng = { version = "9", default-features = false, features = ["parallel"] }
+oxipng = { version = "10", default-features = false, features = ["parallel"] }
 imagequant = "4"
