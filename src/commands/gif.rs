@@ -66,7 +66,7 @@ pub fn generate_gif(args: &GifArgs) -> Result<(), CommandError> {
         &args.output,
         None,
         &args.prefix,
-        ".gif",
+        "gif",
     )?)?;
 
     let mut encoder = gif::GifEncoder::new(&mut file);
