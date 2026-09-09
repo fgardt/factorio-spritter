@@ -7,7 +7,7 @@ pub enum LuaValue {
     Int(i64),
     Bool(bool),
     Shift(f64, f64, usize),
-    Array(Box<[LuaValue]>),
+    Array(Box<[Self]>),
     Table(LuaOutput),
 }
 
