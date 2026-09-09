@@ -76,3 +76,6 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           artifacts: ~/build_artifacts/release_*/*
+          allowUpdates: true
+          omitBodyDuringUpdate: true
+          replacesArtifacts: false
