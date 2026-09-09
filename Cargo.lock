@@ -1081,7 +1081,7 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 
 [[package]]
 name = "spritter"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "clap",
  "env_logger",
