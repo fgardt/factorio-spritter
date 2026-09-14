@@ -42,7 +42,7 @@ jobs:
           prefix-key: "rust-stable"
           shared-key: "clippy"
       - name: Install sarif-fmt & clippy-sarif
-        uses: taiki-e/install-action@v2.87.5
+        uses: taiki-e/install-action@v2.87.11
         with:
           tool: sarif-fmt,clippy-sarif
       - name: Run Clippy
