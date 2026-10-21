@@ -84,6 +84,12 @@ Options:
           This affects how many rows and columns are used to arrange the sprites on the sheet.
           "square" tries to arrange the sprites in a way that the resulting sheet is as square as possible.
           "fill-row" maximizes the number of columns while "fill-column" maximizes the number of rows. [default: square] [possible values: square, fill-row, fill-column]
+      --reverse
+          Reverse the frame order when building the sheet.
+          The last frame will be placed first.
+      --flop
+          Flip each sprite horizontally before building the sheet.
+          This is applied before cropping, so the calculated shift is adjusted accordingly.
 ```
 
 ### Icon

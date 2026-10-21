@@ -80,6 +80,16 @@ pub struct SpritesheetArgs {
     /// "fill-row" maximizes the number of columns while "fill-column" maximizes the number of rows.
     #[clap(long, default_value_t = SheetLayoutMode::Square, verbatim_doc_comment)]
     pub layout_mode: SheetLayoutMode,
+
+    /// Reverse the frame order when building the sheet.
+    /// The last frame will be placed first.
+    #[clap(long, action, verbatim_doc_comment)]
+    pub reverse: bool,
+
+    /// Flip each sprite horizontally before building the sheet.
+    /// This is applied before cropping, so the calculated shift is adjusted accordingly.
+    #[clap(long, action, verbatim_doc_comment)]
+    pub flop: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, VariantArray)]
@@ -261,6 +271,13 @@ fn generate_spritesheet(
         image_util::transparent_black(&mut images, black_limit);
     }
 
+    // flip sprites horizontally
+    if args.flop {
+        for image in &mut images {
+            *image = imageops::flip_horizontal(image);
+        }
+    }
+
     let (shift_x, shift_y) = if args.no_crop {
         (0.0, 0.0)
     } else {
@@ -268,13 +285,25 @@ fn generate_spritesheet(
     };
 
     // dedup empty frames
-    let frame_sequence = if args.deduplicate_empty_frames {
+    let mut frame_sequence = if args.deduplicate_empty_frames {
         let (dedup_imgs, sequence) = image_util::dedup_empty_frames(images);
         images = dedup_imgs;
         Some(sequence)
     } else {
         None
     };
+
+    // reverse frame order
+    if args.reverse {
+        images.reverse();
+
+        if let Some(sequence) = &mut frame_sequence {
+            let count = images.len();
+            for idx in sequence.iter_mut() {
+                *idx = count - 1 - *idx;
+            }
+        }
+    }
 
     #[allow(clippy::unwrap_used)]
     let (sprite_width, sprite_height) = images.first().unwrap().dimensions();
