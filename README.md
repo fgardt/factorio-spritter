@@ -90,6 +90,9 @@ Options:
       --flop
           Flip each sprite horizontally before building the sheet.
           This is applied before cropping, so the calculated shift is adjusted accordingly.
+      --flip
+          Flip each sprite vertically before building the sheet.
+          This is applied before cropping, so the calculated shift is adjusted accordingly.
 ```
 
 ### Icon

@@ -90,6 +90,11 @@ pub struct SpritesheetArgs {
     /// This is applied before cropping, so the calculated shift is adjusted accordingly.
     #[clap(long, action, verbatim_doc_comment)]
     pub flop: bool,
+
+    /// Flip each sprite vertically before building the sheet.
+    /// This is applied before cropping, so the calculated shift is adjusted accordingly.
+    #[clap(long, action, verbatim_doc_comment)]
+    pub flip: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, VariantArray)]
@@ -275,6 +280,13 @@ fn generate_spritesheet(
     if args.flop {
         for image in &mut images {
             *image = imageops::flip_horizontal(image);
+        }
+    }
+
+    // flip sprites vertically
+    if args.flip {
+        for image in &mut images {
+            *image = imageops::flip_vertical(image);
         }
     }
 
