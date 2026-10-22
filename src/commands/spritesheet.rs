@@ -80,6 +80,17 @@ pub struct SpritesheetArgs {
     /// "fill-row" maximizes the number of columns while "fill-column" maximizes the number of rows.
     #[clap(long, default_value_t = SheetLayoutMode::Square, verbatim_doc_comment)]
     pub layout_mode: SheetLayoutMode,
+
+    /// Reverse the frame order when building the sheet.
+    /// The last frame will be placed first.
+    #[clap(long, action, verbatim_doc_comment)]
+    pub reverse: bool,
+
+    /// Flip each sprite before building the sheet.
+    /// "v" flips vertically, "h" flips horizontally, "both" flips on both axes.
+    /// This is applied before cropping, so the calculated shift is adjusted accordingly.
+    #[clap(short, long, verbatim_doc_comment)]
+    pub flip: Option<FlipDirection>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, VariantArray)]
@@ -96,6 +107,13 @@ pub enum SheetLayoutMode {
     Square,
     FillRow,
     FillColumn,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, VariantArray)]
+pub enum FlipDirection {
+    V,
+    H,
+    Both,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -164,6 +182,20 @@ impl ValueEnum for SheetLayoutMode {
             Self::Square => "square",
             Self::FillRow => "fill-row",
             Self::FillColumn => "fill-column",
+        }))
+    }
+}
+
+impl ValueEnum for FlipDirection {
+    fn value_variants<'a>() -> &'a [Self] {
+        Self::VARIANTS
+    }
+
+    fn to_possible_value(&self) -> Option<PossibleValue> {
+        Some(PossibleValue::new(match self {
+            Self::V => "v",
+            Self::H => "h",
+            Self::Both => "both",
         }))
     }
 }
@@ -261,11 +293,32 @@ fn generate_spritesheet(
         image_util::transparent_black(&mut images, black_limit);
     }
 
+    // flip sprites
+    if let Some(flip) = args.flip {
+        let flip_h = matches!(flip, FlipDirection::H | FlipDirection::Both);
+        let flip_v = matches!(flip, FlipDirection::V | FlipDirection::Both);
+
+        for image in &mut images {
+            if flip_h {
+                *image = imageops::flip_horizontal(image);
+            }
+
+            if flip_v {
+                *image = imageops::flip_vertical(image);
+            }
+        }
+    }
+
     let (shift_x, shift_y) = if args.no_crop {
         (0.0, 0.0)
     } else {
         image_util::crop_images(&mut images, args.crop_alpha)?
     };
+
+    // reverse frame order
+    if args.reverse {
+        images.reverse();
+    }
 
     // dedup empty frames
     let frame_sequence = if args.deduplicate_empty_frames {
