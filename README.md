@@ -87,12 +87,10 @@ Options:
       --reverse
           Reverse the frame order when building the sheet.
           The last frame will be placed first.
-      --flop
-          Flip each sprite horizontally before building the sheet.
-          This is applied before cropping, so the calculated shift is adjusted accordingly.
-      --flip
-          Flip each sprite vertically before building the sheet.
-          This is applied before cropping, so the calculated shift is adjusted accordingly.
+  -f, --flip <FLIP>
+          Flip each sprite before building the sheet.
+          "v" flips vertically, "h" flips horizontally, "both" flips on both axes.
+          This is applied before cropping, so the calculated shift is adjusted accordingly. [possible values: v, h, both]
 ```
 
 ### Icon

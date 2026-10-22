@@ -86,15 +86,11 @@ pub struct SpritesheetArgs {
     #[clap(long, action, verbatim_doc_comment)]
     pub reverse: bool,
 
-    /// Flip each sprite horizontally before building the sheet.
+    /// Flip each sprite before building the sheet.
+    /// "v" flips vertically, "h" flips horizontally, "both" flips on both axes.
     /// This is applied before cropping, so the calculated shift is adjusted accordingly.
-    #[clap(long, action, verbatim_doc_comment)]
-    pub flop: bool,
-
-    /// Flip each sprite vertically before building the sheet.
-    /// This is applied before cropping, so the calculated shift is adjusted accordingly.
-    #[clap(long, action, verbatim_doc_comment)]
-    pub flip: bool,
+    #[clap(short, long, verbatim_doc_comment)]
+    pub flip: Option<FlipDirection>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, VariantArray)]
@@ -111,6 +107,13 @@ pub enum SheetLayoutMode {
     Square,
     FillRow,
     FillColumn,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, VariantArray)]
+pub enum FlipDirection {
+    V,
+    H,
+    Both,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -179,6 +182,20 @@ impl ValueEnum for SheetLayoutMode {
             Self::Square => "square",
             Self::FillRow => "fill-row",
             Self::FillColumn => "fill-column",
+        }))
+    }
+}
+
+impl ValueEnum for FlipDirection {
+    fn value_variants<'a>() -> &'a [Self] {
+        Self::VARIANTS
+    }
+
+    fn to_possible_value(&self) -> Option<PossibleValue> {
+        Some(PossibleValue::new(match self {
+            Self::V => "v",
+            Self::H => "h",
+            Self::Both => "both",
         }))
     }
 }
@@ -276,17 +293,19 @@ fn generate_spritesheet(
         image_util::transparent_black(&mut images, black_limit);
     }
 
-    // flip sprites horizontally
-    if args.flop {
-        for image in &mut images {
-            *image = imageops::flip_horizontal(image);
-        }
-    }
+    // flip sprites
+    if let Some(flip) = args.flip {
+        let flip_h = matches!(flip, FlipDirection::H | FlipDirection::Both);
+        let flip_v = matches!(flip, FlipDirection::V | FlipDirection::Both);
 
-    // flip sprites vertically
-    if args.flip {
         for image in &mut images {
-            *image = imageops::flip_vertical(image);
+            if flip_h {
+                *image = imageops::flip_horizontal(image);
+            }
+
+            if flip_v {
+                *image = imageops::flip_vertical(image);
+            }
         }
     }
 
@@ -296,26 +315,19 @@ fn generate_spritesheet(
         image_util::crop_images(&mut images, args.crop_alpha)?
     };
 
+    // reverse frame order
+    if args.reverse {
+        images.reverse();
+    }
+
     // dedup empty frames
-    let mut frame_sequence = if args.deduplicate_empty_frames {
+    let frame_sequence = if args.deduplicate_empty_frames {
         let (dedup_imgs, sequence) = image_util::dedup_empty_frames(images);
         images = dedup_imgs;
         Some(sequence)
     } else {
         None
     };
-
-    // reverse frame order
-    if args.reverse {
-        images.reverse();
-
-        if let Some(sequence) = &mut frame_sequence {
-            let count = images.len();
-            for idx in sequence.iter_mut() {
-                *idx = count - 1 - *idx;
-            }
-        }
-    }
 
     #[allow(clippy::unwrap_used)]
     let (sprite_width, sprite_height) = images.first().unwrap().dimensions();
