@@ -89,8 +89,7 @@ Options:
           The last frame will be placed first.
   -f, --flip <FLIP>
           Flip each sprite before building the sheet.
-          "v" flips vertically, "h" flips horizontally, "both" flips on both axes.
-          This is applied before cropping, so the calculated shift is adjusted accordingly. [possible values: v, h, both]
+          "v" flips vertically, "h" flips horizontally, "both" flips on both axes. [possible values: v, h, both]
 ```
 
 ### Icon
